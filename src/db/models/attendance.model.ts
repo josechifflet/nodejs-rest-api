@@ -9,8 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { MasterUser } from './masteruser.model';
-import { Profile } from './profile.model';
+import { User } from './user.model';
 
 @Entity({ name: 'attendance' })
 export class Attendance {
@@ -52,20 +51,14 @@ export class Attendance {
   updatedAt: Date;
 
   @Column({ nullable: true })
-  masteruserPK: number;
+  userPK: number;
 
-  @ManyToOne(() => MasterUser, (masteruser) => masteruser.attendances, {
+  @ManyToOne(() => User, (user) => user.attendances, {
     nullable: true,
   })
-  @JoinColumn({ name: 'masteruserPK' })
-  masteruser: MasterUser;
+  @JoinColumn({ name: 'userPK' })
+  user: User;
 
   @Column({ nullable: true })
   profilePK: number;
-
-  @ManyToOne(() => Profile, (profile) => profile.attendances, {
-    nullable: true,
-  })
-  @JoinColumn({ name: 'profilePK' })
-  profile: Profile;
 }

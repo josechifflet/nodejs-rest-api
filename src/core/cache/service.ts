@@ -7,49 +7,49 @@ class CacheServiceHandler {
   /**
    * Blacklists an OTP using Redis.
    *
-   * @param masteruserID - User ID.
+   * @param userID - User ID.
    * @param otp - One time password.
    * @returns Asynchronous number from Redis.
    */
-  public blacklistOTP = async (masteruserID: string, otp: string) =>
-    CacheRepository.blacklistOTP(masteruserID, otp);
+  public blacklistOTP = async (userID: string, otp: string) =>
+    CacheRepository.blacklistOTP(userID, otp);
 
   /**
    * Gets an OTP from the Redis cache in order to know whether it is blacklisted or not.
    *
-   * @param masteruserID - UserID of the current user.
+   * @param userID - UserID of the current user.
    * @param otp - One time password.
    * @returns The OTP, or null.
    */
-  public getBlacklistedOTP = async (masteruserID: string, otp: string) =>
-    CacheRepository.getBlacklistedOTP(masteruserID, otp);
+  public getBlacklistedOTP = async (userID: string, otp: string) =>
+    CacheRepository.getBlacklistedOTP(userID, otp);
 
   /**
    * Gets the total number of times the user tries to reset their password.
    *
-   * @param masteruserID - User ID.
+   * @param userID - User ID.
    * @returns Number of attempts the user tried to reset their password.
    */
-  public getForgotPasswordAttempts = async (masteruserID: string) =>
-    CacheRepository.getForgotPasswordAttempts(masteruserID);
+  public getForgotPasswordAttempts = async (userID: string) =>
+    CacheRepository.getForgotPasswordAttempts(userID);
 
   /**
    * Gets whether the user has asked OTP or not.
    *
-   * @param masteruserID - A user's ID
+   * @param userID - A user's ID
    * @returns A value, or null.
    */
-  public getHasAskedOTP = async (masteruserID: string) =>
-    CacheRepository.getHasAskedOTP(masteruserID);
+  public getHasAskedOTP = async (userID: string) =>
+    CacheRepository.getHasAskedOTP(userID);
 
   /**
    * Gets the number of OTP attempts that is done by a user.
    *
-   * @param masteruserID - ID of the user.
+   * @param userID - ID of the user.
    * @returns A value, or null.
    */
-  public getOTPAttempts = async (masteruserID: string) =>
-    CacheRepository.getOTPAttempts(masteruserID);
+  public getOTPAttempts = async (userID: string) =>
+    CacheRepository.getOTPAttempts(userID);
 
   /**
    * Gets the OTP session of a user.
@@ -63,39 +63,39 @@ class CacheServiceHandler {
   /**
    * Gets the lock used to send security alert emails.
    *
-   * @param masteruserID - ID of the user.
+   * @param userID - ID of the user.
    * @returns Value to be used.
    */
-  public getSecurityAlertEmailLock = async (masteruserID: string) =>
-    CacheRepository.getSecurityAlertEmailLock(masteruserID);
+  public getSecurityAlertEmailLock = async (userID: string) =>
+    CacheRepository.getSecurityAlertEmailLock(userID);
 
   /**
    * Sets or increments the number of attempts of a password reset of a user. Default
    * TTL is set to 7200 seconds to 2 hours before one can ask to reset password again.
    *
-   * @param masteruserID - User ID.
+   * @param userID - User ID.
    * @returns Asynchronous 'OK'.
    */
-  public setForgotPasswordAttempts = async (masteruserID: string) =>
-    CacheRepository.setForgotPasswordAttempts(masteruserID);
+  public setForgotPasswordAttempts = async (userID: string) =>
+    CacheRepository.setForgotPasswordAttempts(userID);
 
   /**
    * Sets in the cache whether the user has asked for OTP or not.
    *
-   * @param masteruserID - ID of the user.
+   * @param userID - ID of the user.
    * @returns Asychronous 'OK'.
    */
-  public setHasAskedOTP = async (masteruserID: string) =>
-    CacheRepository.setHasAskedOTP(masteruserID);
+  public setHasAskedOTP = async (userID: string) =>
+    CacheRepository.setHasAskedOTP(userID);
 
   /**
    * Sets the number of OTP 'wrong' attempts of a single user.
    *
-   * @param masteruserID - ID of the user.
+   * @param userID - ID of the user.
    * @returns Asynchronous 'OK'.
    */
-  public setOTPAttempts = async (masteruserID: string) =>
-    CacheRepository.setOTPAttempts(masteruserID);
+  public setOTPAttempts = async (userID: string) =>
+    CacheRepository.setOTPAttempts(userID);
 
   /**
    * Sets the OTP session. Autheticates a user.
@@ -111,11 +111,11 @@ class CacheServiceHandler {
    * Sets the user to be 'email-locked', that is do not send security alert to the user in repeat
    * to prevent SPAM.
    *
-   * @param masteruserID - ID of the user.
+   * @param userID - ID of the user.
    * @returns Asynchronous 'OK'.
    */
-  public setSecurityAlertEmailLock = async (masteruserID: string) =>
-    CacheRepository.setSecurityAlertEmailLock(masteruserID);
+  public setSecurityAlertEmailLock = async (userID: string) =>
+    CacheRepository.setSecurityAlertEmailLock(userID);
 }
 
 export const CacheService = new CacheServiceHandler();

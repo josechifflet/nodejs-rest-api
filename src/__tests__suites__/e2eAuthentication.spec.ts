@@ -20,7 +20,7 @@ export const testAuth = (app: Express.Application) => {
       jest.resetModules();
     });
 
-    it('Signup step 1: create masteruser /api/v1/auth-master/register', async () => {
+    it('Signup step 1: create user /api/v1/auth-master/register', async () => {
       jest.spyOn(crypto, 'randomUUID').mockReturnValue(UUID_VERIFY_EMAIL);
 
       const res = await request(app)
@@ -28,9 +28,9 @@ export const testAuth = (app: Express.Application) => {
         .set('Accept', 'application/json')
         .set('x-requested-with', 'supertest')
         .send({
-          email: 'masteruser@gmail.com',
+          email: 'user@gmail.com',
           phoneNumber: '59898123456',
-          username: 'MasterUser',
+          username: 'User',
           password: '12346789',
           name: 'John',
           lastname: 'Doe',
@@ -39,10 +39,10 @@ export const testAuth = (app: Express.Application) => {
       expect(res.body.status).toBe('success');
     });
 
-    it('Signup step 2: verify masteruser email /api/v1/auth-master/verify-email/:code/:email', async () => {
+    it('Signup step 2: verify user email /api/v1/auth-master/verify-email/:code/:email', async () => {
       const res = await request(app)
         .patch(
-          `/api/v1/auth-master/verify-email/${UUID_VERIFY_EMAIL}/masteruser@gmail.com`
+          `/api/v1/auth-master/verify-email/${UUID_VERIFY_EMAIL}/user@gmail.com`
         )
         .set('Accept', 'application/json')
         .set('x-requested-with', 'supertest')
@@ -51,13 +51,13 @@ export const testAuth = (app: Express.Application) => {
       expect(res.body.status).toBe('success');
     });
 
-    it('Login step 1: login masteruser /api/v1/auth-master/login', async () => {
+    it('Login step 1: login user /api/v1/auth-master/login', async () => {
       const res = await request(app)
         .post('/api/v1/auth-master/login')
         .set('Accept', 'application/json')
         .set('x-requested-with', 'supertest')
         .send({
-          username: 'MasterUser',
+          username: 'User',
           password: '12346789',
         });
       expect(res.status).toBe(200);
@@ -65,7 +65,7 @@ export const testAuth = (app: Express.Application) => {
       jwt = res.body.data.jwt;
     });
 
-    it('Logout step 1: logut masteruser /api/v1/auth-master/logout', async () => {
+    it('Logout step 1: logut user /api/v1/auth-master/logout', async () => {
       const res = await request(app)
         .post('/api/v1/auth-master/logout')
         .set('Accept', 'application/json')

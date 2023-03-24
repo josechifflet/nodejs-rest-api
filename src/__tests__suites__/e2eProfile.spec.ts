@@ -5,24 +5,24 @@ jest.mock('aws-sdk', () => ({
   config: { setPromisesDependency: jest.fn(), update: jest.fn() },
 }));
 export const testProfile = (app: Express.Application) => {
-  let masterUserJwt: string;
+  let userJwt: string;
   let profileJwt: string;
   let createdProfileId: string;
 
   describe('Running Profile Tests', () => {
     beforeAll(async () => {
-      // Login with the masteruser before all tests and save the x-mu-authorization token
+      // Login with the user before all tests and save the x-mu-authorization token
       const res = await request(app)
         .post('/api/v1/auth-master/login')
         .set('Accept', 'application/json')
         .set('x-requested-with', 'supertest')
         .send({
-          username: 'MasterUser',
+          username: 'User',
           password: '12346789',
         });
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('success');
-      masterUserJwt = res.body.data.jwt;
+      userJwt = res.body.data.jwt;
     });
 
     beforeEach(() => {
@@ -35,12 +35,12 @@ export const testProfile = (app: Express.Application) => {
       jest.resetModules();
     });
 
-    it('Register profile as masteruser /api/v1/profiles/me', async () => {
+    it('Register profile as user /api/v1/profiles/me', async () => {
       const res = await request(app)
         .post('/api/v1/profiles/me')
         .set('Accept', 'application/json')
         .set('x-requested-with', 'supertest')
-        .set('x-mu-authorization', masterUserJwt)
+        .set('x-mu-authorization', userJwt)
         .send({
           password: '12346789',
           username: 'MyProfile',
@@ -59,7 +59,7 @@ export const testProfile = (app: Express.Application) => {
           .post('/api/v1/auth-profile/login')
           .set('Accept', 'application/json')
           .set('x-requested-with', 'supertest')
-          .set('x-mu-authorization', masterUserJwt)
+          .set('x-mu-authorization', userJwt)
           .send({
             password: 'wrong password',
             username: 'MyProfile',
@@ -74,7 +74,7 @@ export const testProfile = (app: Express.Application) => {
           .post('/api/v1/auth-profile/login')
           .set('Accept', 'application/json')
           .set('x-requested-with', 'supertest')
-          .set('x-mu-authorization', masterUserJwt)
+          .set('x-mu-authorization', userJwt)
           .send({
             password: '12346789',
             username: 'MyProfile',
@@ -90,7 +90,7 @@ export const testProfile = (app: Express.Application) => {
         .get('/api/v1/profiles/me')
         .set('Accept', 'application/json')
         .set('x-requested-with', 'supertest')
-        .set('x-mu-authorization', masterUserJwt)
+        .set('x-mu-authorization', userJwt)
         .send();
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('success');
@@ -102,7 +102,7 @@ export const testProfile = (app: Express.Application) => {
           .get('/api/v1/profiles/me/' + createdProfileId)
           .set('Accept', 'application/json')
           .set('x-requested-with', 'supertest')
-          .set('x-mu-authorization', masterUserJwt + 'wrong-code')
+          .set('x-mu-authorization', userJwt + 'wrong-code')
           .send();
         expect(res.status).toBe(401);
         expect(res.body.status).toBe('fail');
@@ -113,7 +113,7 @@ export const testProfile = (app: Express.Application) => {
           .get('/api/v1/profiles/me/' + createdProfileId)
           .set('Accept', 'application/json')
           .set('x-requested-with', 'supertest')
-          .set('x-mu-authorization', masterUserJwt)
+          .set('x-mu-authorization', userJwt)
           .send();
         expect(res.status).toBe(200);
         expect(res.body.status).toBe('success');
@@ -126,7 +126,7 @@ export const testProfile = (app: Express.Application) => {
           .patch('/api/v1/profiles/me/' + createdProfileId)
           .set('Accept', 'application/json')
           .set('x-requested-with', 'supertest')
-          .set('x-mu-authorization', masterUserJwt)
+          .set('x-mu-authorization', userJwt)
           .set('x-profile-authorization', profileJwt)
           .send({
             name: 'Nic2',
@@ -143,7 +143,7 @@ export const testProfile = (app: Express.Application) => {
           .patch('/api/v1/profiles/me/' + createdProfileId)
           .set('Accept', 'application/json')
           .set('x-requested-with', 'supertest')
-          .set('x-mu-authorization', masterUserJwt)
+          .set('x-mu-authorization', userJwt)
           .send({
             name: 'Nic3',
             lastname: 'Mauto3',
@@ -159,7 +159,7 @@ export const testProfile = (app: Express.Application) => {
           .delete('/api/v1/profiles/me/' + createdProfileId)
           .set('Accept', 'application/json')
           .set('x-requested-with', 'supertest')
-          .set('x-mu-authorization', masterUserJwt)
+          .set('x-mu-authorization', userJwt)
           .set('x-profile-authorization', profileJwt)
           .send({ password: 'wrong password' });
         expect(res.status).toBe(401);
@@ -171,7 +171,7 @@ export const testProfile = (app: Express.Application) => {
           .delete('/api/v1/profiles/me/' + createdProfileId)
           .set('Accept', 'application/json')
           .set('x-requested-with', 'supertest')
-          .set('x-mu-authorization', masterUserJwt)
+          .set('x-mu-authorization', userJwt)
           .set('x-profile-authorization', profileJwt)
           .send({ password: '12346789' });
         expect(res.status).toBe(204);

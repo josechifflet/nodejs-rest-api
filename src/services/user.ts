@@ -5,17 +5,15 @@ import { z } from 'zod';
 
 import { generateDefaultTOTP } from '../core/rfc6238';
 import { db } from '../db';
-import { MasterUser } from '../db/models/masteruser.model';
-import { MasterUserToProfile } from '../db/models/masteruser-profile.model';
-import { Profile } from '../db/models/profile.model';
+import { User } from '../db/models/user.model';
 import { hashPassword } from '../util/passwords';
 
 /**
  * Almost all user operations return these attributes (usually exposed to the user as response)
  * this is intentional as we do not want sensitive values to be fetched and exposed to the end user.
  */
-const select: FindOptionsSelect<MasterUser> = {
-  masteruserID: true,
+const select: FindOptionsSelect<User> = {
+  userID: true,
   email: true,
   phoneNumber: true,
   name: true,
@@ -25,9 +23,9 @@ const select: FindOptionsSelect<MasterUser> = {
   createdAt: true,
   updatedAt: true,
 };
-type MasterUserReduced = Pick<
-  MasterUser,
-  | 'masteruserID'
+type UserReduced = Pick<
+  User,
+  | 'userID'
   | 'email'
   | 'phoneNumber'
   | 'name'
@@ -37,8 +35,8 @@ type MasterUserReduced = Pick<
   | 'createdAt'
   | 'updatedAt'
 >;
-export const masteruserAttributesValidator = z.object({
-  masteruserID: z.string(),
+export const userAttributesValidator = z.object({
+  userID: z.string(),
   email: z.string(),
   phoneNumber: z.string(),
   name: z.string(),
@@ -50,16 +48,16 @@ export const masteruserAttributesValidator = z.object({
 });
 
 /**
- * Business logic and repositories for 'MasterUser' entity.
+ * Business logic and repositories for 'User' entity.
  */
-class MasterUserService {
+class UserService {
   /**
    * Fetches all users from the database.
    *
    * @returns All users from the database, sensitive columns removed.
    */
-  public getMasterUsers = async (): Promise<MasterUserReduced[]> =>
-    db.repositories.masteruser.find({ select });
+  public getUsers = async (): Promise<UserReduced[]> =>
+    db.repositories.user.find({ select });
 
   /**
    * Fetches a single user's complete data with no filters.
@@ -67,9 +65,9 @@ class MasterUserService {
    * @param where - TypeORM's 'Where' object that accepts unique attributes only.
    * @returns A single user's complete data (with sensitive values).
    */
-  public getMasterUserComplete = async (
-    where: FindOptionsWhere<MasterUser>
-  ): Promise<MasterUser | null> => db.repositories.masteruser.findOneBy(where);
+  public getUserComplete = async (
+    where: FindOptionsWhere<User>
+  ): Promise<User | null> => db.repositories.user.findOneBy(where);
 
   /**
    * Fetches a single user's complete data with no filters.
@@ -78,9 +76,9 @@ class MasterUserService {
    * @param where - TypeORM's 'Where' object that accepts unique attributes only.
    * @returns A single user's complete data (with sensitive values).
    */
-  public getMasterUserCompleteOrFail = async (
-    where: FindOptionsWhere<MasterUser>
-  ): Promise<MasterUser> => db.repositories.masteruser.findOneByOrFail(where);
+  public getUserCompleteOrFail = async (
+    where: FindOptionsWhere<User>
+  ): Promise<User> => db.repositories.user.findOneByOrFail(where);
 
   /**
    * Fetches a single user with their sensitive data removed.
@@ -88,10 +86,10 @@ class MasterUserService {
    * @param where - TypeORM's 'Where' object that accepts unique attributes only.
    * @returns A single user data, filtered (no sensitive values).
    */
-  public getMasterUser = async (
-    where: FindOptionsWhere<MasterUser>
-  ): Promise<MasterUserReduced | null> =>
-    db.repositories.masteruser.findOne({ where, select });
+  public getUser = async (
+    where: FindOptionsWhere<User>
+  ): Promise<UserReduced | null> =>
+    db.repositories.user.findOne({ where, select });
 
   /**
    * Fetches a single user with their sensitive data removed
@@ -100,10 +98,10 @@ class MasterUserService {
    * @param where - TypeORM's 'Where' object that accepts unique attributes only.
    * @returns A single user data, filtered (no sensitive values).
    */
-  public getMasterUserOrFail = async (
-    where: FindOptionsWhere<MasterUser>
-  ): Promise<MasterUserReduced> =>
-    db.repositories.masteruser.findOneOrFail({ where, select });
+  public getUserOrFail = async (
+    where: FindOptionsWhere<User>
+  ): Promise<UserReduced> =>
+    db.repositories.user.findOneOrFail({ where, select });
 
   /**
    * Fetches a single user based on their username, email, and phone number. This is inspired
@@ -116,12 +114,12 @@ class MasterUserService {
    * @param phoneNumber - A user's phone number.
    * @returns A single user data with sensitive values.
    */
-  public getMasterUserByCredentials = async (
+  public getUserByCredentials = async (
     username: string,
     email: string,
     phoneNumber: string
-  ): Promise<MasterUser | null> =>
-    db.repositories.masteruser.findOne({
+  ): Promise<User | null> =>
+    db.repositories.user.findOne({
       /** OR operator */
       where: [{ username }, { email }, { phoneNumber }],
     });
@@ -130,11 +128,11 @@ class MasterUserService {
    * Creates a single user data, and generates their own QR code URI for Google Authenticator.
    *
    * @param data - All of a user's required data.
-   * @returns A created 'MasterUser' object, with sensitive data removed.
+   * @returns A created 'User' object, with sensitive data removed.
    */
-  public createMasterUser = async (
-    data: DeepPartial<MasterUser>
-  ): Promise<MasterUserReduced & { uri: string }> => {
+  public createUser = async (
+    data: DeepPartial<User>
+  ): Promise<UserReduced & { uri: string }> => {
     const u = { ...data };
 
     // Create TOTP secrets with a CSPRNG, and hash passwords with Argon2.
@@ -143,11 +141,11 @@ class MasterUserService {
     u.password = await hashPassword(u.password);
 
     // Create a new user.
-    const newUser = await db.repositories.masteruser.save(u);
+    const newUser = await db.repositories.user.save(u);
 
     // Retrieve the created user
-    const createdUser = await db.repositories.masteruser.findOneOrFail({
-      where: { masteruserPK: newUser.masteruserPK },
+    const createdUser = await db.repositories.user.findOneOrFail({
+      where: { userPK: newUser.userPK },
       select,
     });
 
@@ -163,12 +161,12 @@ class MasterUserService {
    *
    * @param where - TypeORM's 'Where' object. Only accepts unique attributes.
    * @param data - A partial object to update the user. Already validated in validation layer.
-   * @returns An updated 'MasterUser' object, with sensitive data removed.
+   * @returns An updated 'User' object, with sensitive data removed.
    */
-  public updateMasterUser = async (
-    where: FindOptionsWhere<MasterUser>,
-    data: QueryDeepPartialEntity<MasterUser>
-  ): Promise<MasterUserReduced> => {
+  public updateUser = async (
+    where: FindOptionsWhere<User>,
+    data: QueryDeepPartialEntity<User>
+  ): Promise<UserReduced> => {
     const u = { ...data };
 
     // Re-hash password if a user changes their own password.
@@ -176,69 +174,19 @@ class MasterUserService {
       u.password = await hashPassword(u.password);
     }
 
-    await db.repositories.masteruser.update(where, u);
+    await db.repositories.user.update(where, u);
 
-    return db.repositories.masteruser.findOneOrFail({ where, select });
+    return db.repositories.user.findOneOrFail({ where, select });
   };
 
   /**
    * Deletes a single user.
    *
    * @param where - TypeORM's 'where' object to decide what to delete.
-   * @returns An updated 'MasterUser' object.
+   * @returns An updated 'User' object.
    */
-  public deleteMasterUser = async (where: FindOptionsWhere<MasterUser>) =>
-    db.repositories.masteruser.delete(where);
-
-  /**
-   * Returns the MasterUser - Profile entity relation.
-   * Fails otherwise.
-   *
-   * @param masteruserID - masteruser UUID
-   * @param profileID - profile UUID
-   * @returns The MasterUserToProfile relation entity.
-   */
-  public hasAccessToProfile = async (
-    masteruserID: string,
-    profileID: string
-  ): Promise<MasterUserToProfile> => {
-    const [{ masteruserPK }, { profilePK }] = await Promise.all([
-      db.repositories.masteruser.findOneByOrFail({ masteruserID }),
-      db.repositories.profile.findOneByOrFail({ profileID }),
-    ]);
-    return db.repositories.masterUserToProfile.findOneOrFail({
-      where: { masteruserPK, profilePK },
-    });
-  };
-
-  /**
-   * Adds a profile to a masteruser, if not added already.
-   * Fails otherwise.
-   *
-   * @param masteruser - masteruser to add the profile to
-   * @param profile - profile to add to the masteruser
-   * @throws {Error} - If the masteruser or profile does not exist.
-   * @throws {Error} - If the masteruser already has access to the profile.
-   */
-  public addProfileToMasterUser = async (
-    masteruser: MasterUser,
-    profile: Profile
-  ): Promise<void> => {
-    // Check if the Profile is already related to the Master User
-    try {
-      await this.hasAccessToProfile(masteruser.masteruserID, profile.profileID);
-    } catch (e) {
-      // the profile is not related to the master user, create the relationship
-      await db.manager.transaction(async (manager) => {
-        // associate the profile with the masteruser
-        await manager.save(MasterUserToProfile, {
-          masteruserPK: masteruser.masteruserPK,
-          profilePK: profile.profilePK,
-          order: 1,
-        });
-      });
-    }
-  };
+  public deleteUser = async (where: FindOptionsWhere<User>) =>
+    db.repositories.user.delete(where);
 }
 
-export default new MasterUserService();
+export default new UserService();

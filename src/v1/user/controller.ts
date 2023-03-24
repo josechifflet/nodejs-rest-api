@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { db } from '../../db';
 import { services } from '../../services';
 import AppError from '../../util/app-error';
-import getMasterUserSession from '../../util/get-masteruser-session';
+import getUserSession from '../../util/get-user-session';
 import sendResponse from '../../util/send-response';
 
 /**
@@ -11,26 +11,27 @@ import sendResponse from '../../util/send-response';
  */
 class UserControllerHandler {
   /**
-   * Creates a single masteruser. Has several validations to ensure that the username,
-   * email, and phone number are all unique and have not yet been used by another masteruser.
+   * Creates a single user. Has several validations to ensure that the username,
+   * email, and phone number are all unique and have not yet been used by another user.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
    * @param next - Express.js's next function.
    */
-  public createMasterUser = async (
+  public createUser = async (
     req: Request,
     res: Response,
     next: NextFunction
   ) => {
-    const { username, email, phoneNumber, password, name, lastname, role } = req.body;
+    const { username, email, phoneNumber, password, name, lastname, role } =
+      req.body;
 
     // Validates whether the username or email or phone is already used or not. Use
     // parallel processing for speed.
     const [userByUsername, userByEmail, userByPhone] = await Promise.all([
-      services.masteruser.getMasterUser({ username }),
-      services.masteruser.getMasterUser({ email }),
-      services.masteruser.getMasterUser({ phoneNumber }),
+      services.user.getUser({ username }),
+      services.user.getUser({ email }),
+      services.user.getUser({ phoneNumber }),
     ]);
 
     // Perform checks and validations.
@@ -40,29 +41,24 @@ class UserControllerHandler {
     }
 
     if (userByEmail) {
-      next(
-        new AppError('This email has been used by another masteruser!', 422)
-      );
+      next(new AppError('This email has been used by another user!', 422));
       return;
     }
 
     if (userByPhone) {
       next(
-        new AppError(
-          'This phone number has been used by another masteruser!',
-          422
-        )
+        new AppError('This phone number has been used by another user!', 422)
       );
       return;
     }
 
-    const masteruser = await services.masteruser.createMasterUser({
+    const user = await services.user.createUser({
       username,
       email,
       phoneNumber,
       password,
       totpSecret: '', // Filled by the function
-      role, // optional, defaults to 'masteruser'
+      role, // optional, defaults to 'user'
       name,
       lastname,
     });
@@ -72,41 +68,38 @@ class UserControllerHandler {
       res,
       status: 'success',
       statusCode: 201,
-      data: masteruser,
-      message: 'Successfully created a single masteruser!',
+      data: user,
+      message: 'Successfully created a single user!',
       type: 'users',
     });
   };
 
   /**
-   * Deactivates / ban a single masteruser.
+   * Deactivates / ban a single user.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
    * @param next - Express.js's next function.
    */
-  public deactivateMasterUser = async (
+  public deactivateUser = async (
     req: Request,
     res: Response,
     next: NextFunction
   ) => {
     const { id } = req.params;
 
-    const masteruser = await services.masteruser.getMasterUserComplete({
-      masteruserID: id,
+    const user = await services.user.getUserComplete({
+      userID: id,
     });
-    if (!masteruser) {
-      next(new AppError('The masteruser with this ID does not exist!', 404));
+    if (!user) {
+      next(new AppError('The user with this ID does not exist!', 404));
       return;
     }
 
-    await services.masteruser.updateMasterUser(
-      { masteruserID: id },
-      { isActive: false }
-    );
+    await services.user.updateUser({ userID: id }, { isActive: false });
 
     await db.repositories.session.delete({
-      masteruserPK: masteruser.masteruserPK,
+      userPK: user.userPK,
     });
 
     res.status(204).send();
@@ -114,48 +107,48 @@ class UserControllerHandler {
   };
 
   /**
-   * Deletes a single masteruser.
+   * Deletes a single user.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
    * @param next - Express.js's next function.
    */
-  public deleteMasterUser = async (
+  public deleteUser = async (
     req: Request,
     res: Response,
     next: NextFunction
   ) => {
     const { id } = req.params;
 
-    const masteruser = await services.masteruser.getMasterUserComplete({
-      masteruserID: id,
+    const user = await services.user.getUserComplete({
+      userID: id,
     });
-    if (!masteruser) {
-      next(new AppError('The masteruser with this ID does not exist!', 404));
+    if (!user) {
+      next(new AppError('The user with this ID does not exist!', 404));
       return;
     }
 
-    await services.masteruser.deleteMasterUser({ masteruserID: id });
+    await services.user.deleteUser({ userID: id });
 
     // This shouldn't happen, but let's say if an admin deletes themself...
     await db.repositories.session.delete({
-      masteruserPK: masteruser.masteruserPK,
+      userPK: user.userPK,
     });
     res.status(204).send();
     return;
   };
 
   /**
-   * Gets a single masteruser.
+   * Gets a single user.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
    */
-  public getMasterUser = async (req: Request, res: Response) => {
-    const { masteruserID } = getMasterUserSession(req, res);
+  public getUser = async (req: Request, res: Response) => {
+    const { userID } = getUserSession(req, res);
 
-    const masteruser = await services.masteruser.getMasterUser({
-      masteruserID,
+    const user = await services.user.getUser({
+      userID,
     });
 
     sendResponse({
@@ -163,8 +156,8 @@ class UserControllerHandler {
       res,
       status: 'success',
       statusCode: 200,
-      data: masteruser,
-      message: 'Successfully fetched a single masteruser!',
+      data: user,
+      message: 'Successfully fetched a single user!',
       type: 'users',
     });
   };
@@ -175,8 +168,8 @@ class UserControllerHandler {
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
    */
-  public getMasterUsers = async (req: Request, res: Response) => {
-    const users = await services.masteruser.getMasterUsers();
+  public getUsers = async (req: Request, res: Response) => {
+    const users = await services.user.getUsers();
 
     sendResponse({
       req,
@@ -190,34 +183,44 @@ class UserControllerHandler {
   };
 
   /**
-   * Updates a single masteruser. Has validations to ensure that the current masteruser
+   * Updates a single user. Has validations to ensure that the current user
    * does not use others phone number or email.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
    * @param next - Express.js's next function.
    */
-  public updateMasterUser = async (
+  public updateUser = async (
     req: Request,
     res: Response,
     next: NextFunction
   ) => {
-    const { username, email, phoneNumber, password, role, isActive, name, lastname } =
-      req.body;
-    const { masteruserID } = getMasterUserSession(req, res);
+    const {
+      username,
+      email,
+      phoneNumber,
+      password,
+      role,
+      isActive,
+      name,
+      lastname,
+    } = req.body;
+    const { userID } = getUserSession(req, res);
 
     // Validate everything via 'Promise.all' for speed.
-    const userByID = services.masteruser.getMasterUser({ masteruserID: masteruserID })
+    const userByID = services.user.getUser({
+      userID: userID,
+    });
 
     // Perform validations.
     if (!userByID) {
-      next(new AppError('The masteruser with this ID does not exist!', 404));
+      next(new AppError('The user with this ID does not exist!', 404));
       return;
     }
 
     // Everything is optional and sanitized according to the previous validation layer.
-    const masteruser = await services.masteruser.updateMasterUser(
-      { masteruserID: masteruserID },
+    const user = await services.user.updateUser(
+      { userID: userID },
       {
         username,
         email,
@@ -226,7 +229,7 @@ class UserControllerHandler {
         role,
         isActive,
         name,
-        lastname
+        lastname,
       }
     );
 
@@ -235,11 +238,11 @@ class UserControllerHandler {
       res,
       status: 'success',
       statusCode: 200,
-      data: masteruser,
-      message: 'Successfully updated a single masteruser!',
+      data: user,
+      message: 'Successfully updated a single user!',
       type: 'users',
     });
   };
 }
 
-export const MasterUserController = new UserControllerHandler();
+export const UserController = new UserControllerHandler();

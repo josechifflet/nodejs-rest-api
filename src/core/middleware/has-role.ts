@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 
-import UserService from '../../services/masteruser';
+import UserService from '../../services/user';
 import AppError from '../../util/app-error';
 
 /**
@@ -11,13 +11,13 @@ import AppError from '../../util/app-error';
 const hasRole =
   (...roles: string[]) =>
   async (req: Request, _: Response, next: NextFunction) => {
-    if (!req.session.masteruserID) {
+    if (!req.session.userID) {
       next(new AppError('Session not found. Please log in again!', 401));
       return;
     }
 
-    const user = await UserService.getMasterUser({
-      masteruserID: req.session.masteruserID,
+    const user = await UserService.getUser({
+      userID: req.session.userID,
     });
     if (!user) {
       next(new AppError('User with that ID is not found.', 404));

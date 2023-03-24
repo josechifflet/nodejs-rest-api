@@ -24,8 +24,7 @@ const select: FindOptionsSelect<Attendance> = {
   ipAddressLeave: true,
   deviceLeave: true,
   remarksLeave: true,
-  masteruser: { masteruserID: true, name: true, lastname: true },
-  profile: { profileID: true },
+  user: { userID: true, name: true, lastname: true },
 };
 
 /**
@@ -50,21 +49,17 @@ class AttendanceService {
    * is between today and tomorrow (based on arguments).
    *
    * @param date - Current date as a 'Date' object.
-   * @param masteruserID - A user's ID.
+   * @param userID - A user's ID.
    * @param type - A type to check the attendance, based on 'timeEnter' or 'timeLeave'.
    * @returns A single attendance object.
    */
-  public checked = async (
-    date: Date,
-    masteruserID: string,
-    type: 'in' | 'out'
-  ) => {
+  public checked = async (date: Date, userID: string, type: 'in' | 'out') => {
     const tomorrow = new Date(new Date().setDate(new Date().getDate() + 1));
 
     if (type === 'in') {
       return db.repositories.attendance.findOne({
         where: {
-          masteruser: { masteruserID },
+          user: { userID },
           timeEnter: Between(formatDate(date), formatDate(tomorrow)),
         },
       });
@@ -72,7 +67,7 @@ class AttendanceService {
 
     return db.repositories.attendance.findOne({
       where: {
-        masteruser: { masteruserID },
+        user: { userID },
         timeLeave: Between(formatDate(date), formatDate(tomorrow)),
       },
     });

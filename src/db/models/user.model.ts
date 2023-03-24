@@ -3,7 +3,6 @@ import {
   CreateDateColumn,
   Entity,
   Generated,
-  JoinColumn,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -11,17 +10,16 @@ import {
 
 import { Role } from '../../types/enums';
 import { Attendance } from './attendance.model';
-import { MasterUserToProfile } from './masteruser-profile.model';
 import { Session } from './session.model';
 
-@Entity({ name: 'masteruser' })
-export class MasterUser {
+@Entity({ name: 'user' })
+export class User {
   @PrimaryGeneratedColumn()
-  masteruserPK: number;
+  userPK: number;
 
   @Column({ unique: true })
   @Generated('uuid')
-  masteruserID: string;
+  userID: string;
 
   @Column({ unique: true })
   username: string;
@@ -62,16 +60,9 @@ export class MasterUser {
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 
-  @OneToMany(() => Attendance, (attendance) => attendance.masteruser)
+  @OneToMany(() => Attendance, (attendance) => attendance.user)
   attendances: Attendance[];
 
-  @OneToMany(() => Session, (session) => session.profile)
+  @OneToMany(() => Session, (session) => session.user)
   sessions: Session[];
-
-  @OneToMany(
-    () => MasterUserToProfile,
-    (masterUserToProfile) => masterUserToProfile.masteruser
-  )
-  @JoinColumn({ referencedColumnName: 'masteruserPK' })
-  public masterUserToProfiles: MasterUserToProfile[];
 }

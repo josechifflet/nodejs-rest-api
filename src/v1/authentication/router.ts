@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import bodyParser from '../../core/middleware/body-parser';
 import hasJWT from '../../core/middleware/has-jwt';
-import hasMasterUserSession from '../../core/middleware/has-masteruser-session';
+import hasUserSession from '../../core/middleware/has-user-session';
 import rateLimit from '../../core/middleware/rate-limit';
 import asyncHandler from '../../util/async-handler';
 import validate from '../../util/validate';
@@ -22,7 +22,7 @@ const AuthRouter = () => {
   // General endpoint, (almost) no rate limit.
   router.get(
     '/status',
-    asyncHandler(hasMasterUserSession),
+    asyncHandler(hasUserSession),
     asyncHandler(AuthController.getStatus)
   );
 
@@ -38,7 +38,7 @@ const AuthRouter = () => {
   // Logs out a single user.
   router.post(
     '/logout',
-    asyncHandler(hasMasterUserSession),
+    asyncHandler(hasUserSession),
     asyncHandler(AuthController.logout)
   );
 
@@ -56,13 +56,13 @@ const AuthRouter = () => {
     .route('/otp')
     .post(
       authRateLimit,
-      asyncHandler(hasMasterUserSession),
+      asyncHandler(hasUserSession),
       validate(AuthValidation.sendOTP),
       asyncHandler(AuthController.sendOTP)
     )
     .put(
       authRateLimit,
-      asyncHandler(hasMasterUserSession),
+      asyncHandler(hasUserSession),
       asyncHandler(AuthController.verifyOTP)
     );
 
@@ -88,7 +88,7 @@ const AuthRouter = () => {
   router.patch(
     '/update-mfa',
     authRateLimit,
-    asyncHandler(hasMasterUserSession),
+    asyncHandler(hasUserSession),
     asyncHandler(hasJWT),
     asyncHandler(AuthController.updateMFA)
   );
@@ -97,7 +97,7 @@ const AuthRouter = () => {
   router.patch(
     '/update-password',
     rateLimit(2, 'auth-password-update'),
-    asyncHandler(hasMasterUserSession),
+    asyncHandler(hasUserSession),
     bodyParser,
     validate(AuthValidation.updatePassword),
     asyncHandler(AuthController.updatePassword)

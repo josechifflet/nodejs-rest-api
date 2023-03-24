@@ -5,10 +5,8 @@ import morgan from 'morgan';
 
 import config from '../../config';
 import AttendanceRouter from '../../v1/attendance/router';
-import AuthRouter from '../../v1/auth-master/router';
-import AuthProfileRouter from '../../v1/auth-profile/router';
-import UserRouter from '../../v1/masteruser/router';
-import ProfileRouter from '../../v1/profile/router';
+import AuthRouter from '../../v1/authentication/router';
+import UserRouter from '../../v1/user/router';
 import errorHandler from '../errorHandler';
 import accept from '../middleware/accept';
 import busyHandler from '../middleware/busy-handler';
@@ -60,20 +58,16 @@ app.use(xst());
 // Define handlers.
 const attendanceRouter = AttendanceRouter();
 const authRouter = AuthRouter();
-const authProfileRouter = AuthProfileRouter();
 const userRouter = UserRouter();
-const profileRouter = ProfileRouter();
 
 // Log requests (successful requests).
 app.use(successLogger);
 
 // Define API routes. Throttle '/api' route to prevent spammers.
 app.use('/api', slowDown(75));
-app.use('/api/v1/auth-master', authRouter);
-app.use('/api/v1/auth-profile', authProfileRouter);
+app.use('/api/v1/authentication', authRouter);
 app.use('/api/v1/attendances', attendanceRouter);
 app.use('/api/v1/users', userRouter);
-app.use('/api/v1/profiles', profileRouter);
 
 // Catch-all routes for API.
 app.all('*', notFound());

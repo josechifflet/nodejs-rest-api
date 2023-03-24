@@ -2,13 +2,13 @@ import { Router } from 'express';
 
 import bodyParser from '../../core/middleware/body-parser';
 import hasJWT from '../../core/middleware/has-jwt';
-import hasMasterUserSession from '../../core/middleware/has-masteruser-session';
+import hasUserSession from '../../core/middleware/has-user-session';
 import hasRole from '../../core/middleware/has-role';
 import rateLimit from '../../core/middleware/rate-limit';
 import asyncHandler from '../../util/async-handler';
 import validate from '../../util/validate';
 import AttendanceHandler from '../attendance/router';
-import { MasterUserController } from './controller';
+import { UserController } from './controller';
 import UserValidation from './validation';
 
 /**
@@ -18,26 +18,26 @@ import UserValidation from './validation';
  */
 const UserRouter = () => {
   const router = Router();
-  const userRateLimit = rateLimit(100, 'masterusers-me', 15);
-  const adminRateLimit = rateLimit(30, 'masterusers-admin');
+  const userRateLimit = rateLimit(100, 'users-me', 15);
+  const adminRateLimit = rateLimit(30, 'users-admin');
 
   // Route to 'Attendance' entity based on the current user for better REST-ful experience.
   router.use('/:id/attendances', AttendanceHandler());
 
-  // Below endpoints are allowed for only authenticated masterusers.
-  router.use(asyncHandler(hasMasterUserSession));
+  // Below endpoints are allowed for only authenticated users.
+  router.use(asyncHandler(hasUserSession));
 
   // Allow user to get their own data and update their own data as well.
   router
     .use(userRateLimit)
     .route('/me')
-    .get(asyncHandler(MasterUserController.getMasterUser))
+    .get(asyncHandler(UserController.getUser))
     .patch(
       bodyParser,
       validate(UserValidation.updateMe),
-      asyncHandler(MasterUserController.updateMasterUser)
+      asyncHandler(UserController.updateUser)
     )
-    .delete(asyncHandler(MasterUserController.deactivateMasterUser));
+    .delete(asyncHandler(UserController.deactivateUser));
 
   // Restrict endpoints for admins who are logged in and authenticated with MFA.
   router.use(
@@ -49,28 +49,25 @@ const UserRouter = () => {
   // Perform get and create operations on the general entity.
   router
     .route('/')
-    .get(asyncHandler(MasterUserController.getMasterUsers))
+    .get(asyncHandler(UserController.getUsers))
     .post(
       bodyParser,
       validate(UserValidation.createUser),
-      asyncHandler(MasterUserController.createMasterUser)
+      asyncHandler(UserController.createUser)
     );
 
   // Perform get, update, and delete operations on a specific entity.
   router
     .route('/:id')
-    .get(
-      validate(UserValidation.getUser),
-      asyncHandler(MasterUserController.getMasterUser)
-    )
+    .get(validate(UserValidation.getUser), asyncHandler(UserController.getUser))
     .patch(
       bodyParser,
       validate(UserValidation.updateUser),
-      asyncHandler(MasterUserController.updateMasterUser)
+      asyncHandler(UserController.updateUser)
     )
     .delete(
       validate(UserValidation.deleteUser),
-      asyncHandler(MasterUserController.deleteMasterUser)
+      asyncHandler(UserController.deleteUser)
     );
 
   return router;

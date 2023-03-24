@@ -1,9 +1,9 @@
-import { MasterUserSessionDataSchemaType } from './src/types/masterUserSession';
+import { UserSessionDataSchemaType } from './src/types/userSession';
 import { ProfileSessionDataSchemaType } from './src/types/profileSession';
 
 declare module 'express-session' {
   interface SessionData {
-    masteruserID?: string;
+    userID?: string;
     lastActive?: string;
     sessionInfo?: {
       device?: string;
@@ -16,7 +16,7 @@ declare module 'express-session' {
 declare module 'express' {
   interface Response {
     locals: {
-      masterUserSession?: MasterUserSessionDataSchemaType;
+      userSession?: UserSessionDataSchemaType;
       profileSession?: ProfileSessionDataSchemaType;
     };
   }

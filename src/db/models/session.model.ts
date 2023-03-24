@@ -9,8 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-import { MasterUser } from './masteruser.model';
-import { Profile } from './profile.model';
+import { User } from './user.model';
 
 @Entity({ name: 'session' })
 export class Session {
@@ -24,7 +23,6 @@ export class Session {
   @Column({ unique: true })
   jwtId: string;
 
-  /** Date.now().toString() */
   @Column()
   lastActive: string;
 
@@ -34,7 +32,6 @@ export class Session {
   @Column()
   sessionInfoDevice: string;
 
-  /** Date.now().toString() */
   @Column()
   signedIn: string;
 
@@ -45,20 +42,11 @@ export class Session {
   updatedAt: Date;
 
   @Column({ nullable: true })
-  masteruserPK: number;
+  userPK: number;
 
-  @Column({ nullable: true })
-  profilePK: number;
-
-  @ManyToOne(() => MasterUser, (masteruser) => masteruser.sessions, {
+  @ManyToOne(() => User, (user) => user.sessions, {
     nullable: true,
   })
-  @JoinColumn({ name: 'masteruserPK' })
-  masteruser: MasterUser;
-
-  @ManyToOne(() => Profile, (profile) => profile.sessions, {
-    nullable: true,
-  })
-  @JoinColumn({ name: 'profilePK' })
-  profile: Profile;
+  @JoinColumn({ name: 'userPK' })
+  user: User;
 }

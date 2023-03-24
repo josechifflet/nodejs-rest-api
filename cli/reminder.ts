@@ -1,7 +1,7 @@
 import Email from '../src/core/email';
 import { typeormInstance } from '../src/db/typeorm-connection';
 import AttendanceService from '../src/services/attendance';
-import UserService from '../src/services/masteruser';
+import UserService from '../src/services/user';
 
 /**
  * Fetches all users, then check if they are already signed out for today.
@@ -14,14 +14,14 @@ async function main() {
   // Declare needed variables.
   const url = process.env.URL ? process.env.URL : '#';
   const today = new Date();
-  const users = await UserService.getMasterUsers();
+  const users = await UserService.getUsers();
 
   // Ensure that the `reminders` array is fileld with parallel processing.
   const reminders = await Promise.all(
     users.map(async (user) => {
       const hasCheckedIn = await AttendanceService.checked(
         today,
-        user.masteruserID,
+        user.userID,
         'in'
       );
       if (!hasCheckedIn) {
@@ -30,7 +30,7 @@ async function main() {
 
       const hasCheckedOut = await AttendanceService.checked(
         today,
-        user.masteruserID,
+        user.userID,
         'out'
       );
       if (hasCheckedOut) {

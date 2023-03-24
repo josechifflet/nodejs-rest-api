@@ -1,11 +1,10 @@
 import { z } from 'zod';
 
-import { profileAttributesValidator } from '../services/profile';
+import { userAttributesValidator } from '../services/user';
 
-export const ProfileSessionDataSchema = z.object({
-  masteruserID: z.string().uuid(),
-  profileID: z.string().uuid(),
-  profile: profileAttributesValidator,
+export const UserSessionDataSchema = z.object({
+  userID: z.string().uuid(),
+  user: userAttributesValidator,
   lastActive: z.string(),
   sessionInfo: z.object({ device: z.string(), ip: z.string() }),
   signedIn: z.string(),
@@ -21,6 +20,4 @@ export const ProfileSessionDataSchema = z.object({
   }),
 });
 
-export type ProfileSessionDataSchemaType = z.infer<
-  typeof ProfileSessionDataSchema
->;
+export type UserSessionDataSchemaType = z.infer<typeof UserSessionDataSchema>;

@@ -17,7 +17,7 @@ async function loadData() {
       totpSecret: '1234',
       name: 'Admin',
       lastname: 'Attendance',
-      role: 'admin'
+      role: 'admin',
     },
   ];
 }
@@ -32,8 +32,8 @@ async function main() {
 
   const users = await loadData();
 
-  await db.repositories.masteruser.delete({});
-  await db.repositories.masteruser.save(users);
+  await db.repositories.user.delete({});
+  await db.repositories.user.save(users);
 
   const totpStrings = users.map((user) =>
     generateTOTP({

@@ -40,18 +40,15 @@ const hasJWT = async (req: Request, _: Response, next: NextFunction) => {
   }
 
   // Check if JTI exists in Redis.
-  const masteruserID = await CacheService.getOTPSession(decoded.payload.jti);
-  if (!masteruserID) {
+  const userID = await CacheService.getOTPSession(decoded.payload.jti);
+  if (!userID) {
     next(new AppError('This token does not exist in the database.', 401));
     return;
   }
 
   // Validate whether the session is equal to the user ID + the sub property,
   // there is no need to call the database here (reduces overhead).
-  if (
-    req.session.masteruserID !== masteruserID ||
-    decoded.payload.sub !== masteruserID
-  ) {
+  if (req.session.userID !== userID || decoded.payload.sub !== userID) {
     next(new AppError('User belonging to this token does not exist.', 404));
     return;
   }

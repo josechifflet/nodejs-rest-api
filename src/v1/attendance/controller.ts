@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { services } from '../../services';
 import AppError from '../../util/app-error';
 import getDeviceID from '../../util/device-id';
-import getMasterUserSession from '../../util/get-masteruser-session';
+import getUserSession from '../../util/get-user-session';
 import sendResponse from '../../util/send-response';
 
 /**
@@ -24,10 +24,10 @@ class AttendanceControllerHandler {
     res: Response,
     next: NextFunction
   ) => {
-    const { masteruserID } = getMasterUserSession(req, res);
+    const { userID } = getUserSession(req, res);
     const { id } = req.params;
 
-    if (!masteruserID) {
+    if (!userID) {
       next(new AppError('No session detected. Please log in again!', 401));
       return;
     }
@@ -35,8 +35,8 @@ class AttendanceControllerHandler {
     // If 'req.params' is not null, it means that we're trying to get the attendance
     // data of a single user instead of getting all attendance data.
     if (id) {
-      const user = await services.masteruser.getMasterUserComplete({
-        masteruserID: id,
+      const user = await services.user.getUserComplete({
+        userID: id,
       });
       if (!user) {
         next(new AppError('No user found with that ID.', 404));
@@ -44,7 +44,7 @@ class AttendanceControllerHandler {
       }
 
       const attendances = await services.attendance.getAttendances({
-        masteruserPK: user.masteruserPK,
+        userPK: user.userPK,
       });
 
       sendResponse({
@@ -83,15 +83,15 @@ class AttendanceControllerHandler {
     res: Response,
     next: NextFunction
   ) => {
-    const { masteruserID } = getMasterUserSession(req, res);
+    const { userID } = getUserSession(req, res);
 
-    if (!masteruserID) {
+    if (!userID) {
       next(new AppError('No session detected. Please log in again!', 401));
       return;
     }
 
-    const user = await services.masteruser.getMasterUserComplete({
-      masteruserID,
+    const user = await services.user.getUserComplete({
+      userID,
     });
     if (!user) {
       next(new AppError('User with this ID is not found.', 404));
@@ -99,7 +99,7 @@ class AttendanceControllerHandler {
     }
 
     const attendances = await services.attendance.getAttendances({
-      masteruserPK: user.masteruserPK,
+      userPK: user.userPK,
     });
     sendResponse({
       req,
@@ -124,16 +124,16 @@ class AttendanceControllerHandler {
     res: Response,
     next: NextFunction
   ) => {
-    const { masteruserID } = getMasterUserSession(req, res);
-    if (!masteruserID) {
+    const { userID } = getUserSession(req, res);
+    if (!userID) {
       next(new AppError('No session detected. Please log in again!', 401));
       return;
     }
 
     const today = new Date();
     const [inData, outData] = await Promise.all([
-      services.attendance.checked(today, masteruserID, 'in'),
-      services.attendance.checked(today, masteruserID, 'out'),
+      services.attendance.checked(today, userID, 'in'),
+      services.attendance.checked(today, userID, 'out'),
     ]);
 
     sendResponse({
@@ -161,16 +161,16 @@ class AttendanceControllerHandler {
    */
   public in = async (req: Request, res: Response, next: NextFunction) => {
     const { remarksEnter } = req.body;
-    const { masteruserID } = getMasterUserSession(req, res);
+    const { userID } = getUserSession(req, res);
 
-    if (!masteruserID) {
+    if (!userID) {
       next(new AppError('No session detected. Please log in again!', 401));
       return;
     }
 
     // Gets complete user.
-    const user = await services.masteruser.getMasterUserComplete({
-      masteruserID,
+    const user = await services.user.getUserComplete({
+      userID,
     });
     if (!user) {
       next(new AppError('User does not exist in the database!', 400));
@@ -179,11 +179,7 @@ class AttendanceControllerHandler {
 
     // Checks whether a user has clocked in for today, time is on UTC.
     const today = new Date();
-    const checked = await services.attendance.checked(
-      today,
-      user.masteruserID,
-      'in'
-    );
+    const checked = await services.attendance.checked(today, user.userID, 'in');
     if (checked) {
       next(new AppError('You have already checked in for today!', 400));
       return;
@@ -195,7 +191,7 @@ class AttendanceControllerHandler {
       ipAddressEnter: getDeviceID(req).ip,
       deviceEnter: getDeviceID(req).device,
       remarksEnter,
-      masteruserPK: user.masteruserPK,
+      userPK: user.userPK,
     });
 
     // Send back response.
@@ -225,17 +221,17 @@ class AttendanceControllerHandler {
    * @param next - Express.js's next function.
    */
   public out = async (req: Request, res: Response, next: NextFunction) => {
-    const { masteruserID } = getMasterUserSession(req, res);
+    const { userID } = getUserSession(req, res);
     const { remarksLeave } = req.body;
 
-    if (!masteruserID) {
+    if (!userID) {
       next(new AppError('No session detected. Please log in again!', 401));
       return;
     }
 
     // Gets complete user.
-    const user = await services.masteruser.getMasterUserComplete({
-      masteruserID,
+    const user = await services.user.getUserComplete({
+      userID,
     });
     if (!user) {
       next(new AppError('User does not exist in the database!', 400));
@@ -244,22 +240,14 @@ class AttendanceControllerHandler {
 
     // Checks whether the user has already checked out for today.
     const today = new Date();
-    const out = await services.attendance.checked(
-      today,
-      user.masteruserID,
-      'out'
-    );
+    const out = await services.attendance.checked(today, user.userID, 'out');
     if (out) {
       next(new AppError('You have checked out for today!', 400));
       return;
     }
 
     // Checks whether the user has clocked in for today. Time is on UTC.
-    const checked = await services.attendance.checked(
-      today,
-      user.masteruserID,
-      'in'
-    );
+    const checked = await services.attendance.checked(today, user.userID, 'in');
     if (!checked) {
       next(new AppError('You have not yet checked in for today!', 400));
       return;

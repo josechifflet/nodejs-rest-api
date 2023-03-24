@@ -12,7 +12,7 @@ import { services } from '../../services';
 import { MASTERUSER_AUTHORIZATION_HEADER } from '../../types/consts';
 import AppError from '../../util/app-error';
 import getDeviceID from '../../util/device-id';
-import getMasterUserSession from '../../util/get-masteruser-session';
+import getUserSession from '../../util/get-user-session';
 import { extractJWTFromHeader, signJWS, verifyToken } from '../../util/jwt';
 import { verifyPassword } from '../../util/passwords';
 import randomBytes from '../../util/random-bytes';
@@ -20,13 +20,13 @@ import safeCompare from '../../util/safe-compare';
 import sendResponse from '../../util/send-response';
 
 /**
- * MasterUser Authentication controller, forwarded from 'handler'.
+ * User Authentication controller, forwarded from 'handler'.
  */
 class AuthControllerHandler {
   /**
-   * Gets the masteruser's status.
+   * Gets the user's status.
    * This is a special middleware. It should have no 'next', and this middleware
-   * will ignore ANY errors that might be in the way. If an error is found, the masteruser
+   * will ignore ANY errors that might be in the way. If an error is found, the user
    * will not be authenticated and will not throw an 'AppError'.
    *
    * @param req - Express.js's request object.
@@ -57,27 +57,27 @@ class AuthControllerHandler {
       }
 
       // Check the token id exists in the session's table
-      // Check in an unlikely scenario: a masteruser has already deleted his account but their session is still active.
-      const [masteruser, session] = await Promise.all([
-        services.masteruser.getMasterUser({
-          masteruserID: decoded.payload.sub,
+      // Check in an unlikely scenario: a user has already deleted his account but their session is still active.
+      const [user, session] = await Promise.all([
+        services.user.getUser({
+          userID: decoded.payload.sub,
         }),
         db.repositories.session.findOneBy({ jwtId: decoded.payload.jti }),
       ]);
-      if (!session || !masteruser) {
+      if (!session || !user) {
         this.sendUserStatus(req, res, true, false, null);
         return;
       }
 
-      // Send final response that the masteruser is properly authenticated and authorized.
-      this.sendUserStatus(req, res, true, true, masteruser);
+      // Send final response that the user is properly authenticated and authorized.
+      this.sendUserStatus(req, res, true, true, user);
     } catch {
       this.sendUserStatus(req, res, false, false, null);
     }
   };
 
   /**
-   * A masteruser can securely reset their password by using this handler.
+   * A user can securely reset their password by using this handler.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
@@ -90,16 +90,14 @@ class AuthControllerHandler {
   ) => {
     const { email, username } = req.body;
 
-    // Try to find masteruser by both attributes.
+    // Try to find user by both attributes.
     const [userByUsername, userByEmail] = await Promise.all([
-      services.masteruser.getMasterUserComplete({ username }),
-      services.masteruser.getMasterUserComplete({ email }),
+      services.user.getUserComplete({ username }),
+      services.user.getUserComplete({ email }),
     ]);
 
     if (!userByUsername || !userByEmail) {
-      next(
-        new AppError('MasterUser with those identifiers is not found!', 404)
-      );
+      next(new AppError('User with those identifiers is not found!', 404));
       return;
     }
 
@@ -115,7 +113,7 @@ class AuthControllerHandler {
 
     // Ensure that the cache is not filled yet.
     const attempts = await CacheService.getForgotPasswordAttempts(
-      userByUsername.masteruserID
+      userByUsername.userID
     );
     if (attempts && Number.parseInt(attempts, 10) === 2) {
       next(
@@ -127,7 +125,7 @@ class AuthControllerHandler {
       return;
     }
 
-    // Deny request if the masteruser is not active.
+    // Deny request if the user is not active.
     if (!userByUsername.isActive) {
       next(
         new AppError(
@@ -144,9 +142,9 @@ class AuthControllerHandler {
     const withPort = config.NODE_ENV === 'production' ? '' : ':3000';
     const url = `${req.protocol}://${req.hostname}${withPort}/reset-password?token=${token}&action=reset`;
 
-    // Insert token to that masteruser.
-    await services.masteruser.updateMasterUser(
-      { masteruserID: userByUsername.masteruserID },
+    // Insert token to that user.
+    await services.user.updateUser(
+      { userID: userByUsername.userID },
       { forgotPasswordCode: token }
     );
 
@@ -157,7 +155,7 @@ class AuthControllerHandler {
     ).sendForgotPassword(url);
 
     // Increment cache.
-    await CacheService.setForgotPasswordAttempts(userByUsername.masteruserID);
+    await CacheService.setForgotPasswordAttempts(userByUsername.userID);
 
     // Send response.
     sendResponse({
@@ -172,7 +170,7 @@ class AuthControllerHandler {
   };
 
   /**
-   * Logs in a masteruser into the webservice.
+   * Logs in a user into the webservice.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
@@ -184,53 +182,47 @@ class AuthControllerHandler {
     // Find credentials. All are case-insensitive and ready to be used.
     // The arguments to the function are filled with `username`, it is assumed
     // that `username` can be the literal username, email, or even phone number with dashes. As
-    // credentials are unique, it will fetch the correct masteruser without fail if the credential exists.
-    const masteruser = await services.masteruser.getMasterUserByCredentials(
+    // credentials are unique, it will fetch the correct user without fail if the credential exists.
+    const user = await services.user.getUserByCredentials(
       username,
       username,
       username
     );
 
     // At the same time, we also safe-compare passwords to prevent timing attacks.
-    if (!masteruser || !(await verifyPassword(masteruser.password, password))) {
+    if (!user || !(await verifyPassword(user.password, password))) {
       next(new AppError('Invalid username and/or password!', 401));
       return;
     }
 
-    // Ensure the masteruser is not blocked.
-    if (!masteruser.isActive) {
-      next(
-        new AppError('MasterUser is not active. Please contact the admin.', 403)
-      );
+    // Ensure the user is not blocked.
+    if (!user.isActive) {
+      next(new AppError('User is not active. Please contact the admin.', 403));
       return;
     }
 
     // Clone object and delete sensitive data, prevent leaking confidential information. Do
     // not perform DB calls here - it is unnecessary overhead.
-    const filteredUser = { ...masteruser } as Partial<typeof masteruser>;
+    const filteredUser = { ...user } as Partial<typeof user>;
     delete filteredUser.username;
     delete filteredUser.totpSecret;
     delete filteredUser.password;
-    delete filteredUser.masteruserPK;
+    delete filteredUser.userPK;
     delete filteredUser.confirmationCode;
     delete filteredUser.forgotPasswordCode;
 
     const jwtId = randomUUID();
-    const jwt = await signJWS(
-      jwtId,
-      masteruser.masteruserID,
-      525600 /** 1 year */
-    );
+    const jwt = await signJWS(jwtId, user.userID, 525600 /** 1 year */);
 
     // Save session information.
-    const masteruserPK = masteruser.masteruserPK;
+    const userPK = user.userPK;
     const lastActive = Date.now().toString();
     const sessionInfo = getDeviceID(req);
     const signedIn = Date.now().toString();
 
     await db.repositories.session.save({
       jwtId,
-      masteruserPK,
+      userPK,
       lastActive,
       sessionInfoDevice: sessionInfo.device,
       sessionInfoIp: sessionInfo.ip,
@@ -243,14 +235,14 @@ class AuthControllerHandler {
       res,
       status: 'success',
       statusCode: 200,
-      data: { jwt, masteruser: filteredUser },
+      data: { jwt, user: filteredUser },
       message: 'Logged in successfully!',
       type: 'auth',
     });
   };
 
   /**
-   * Logs out a single masteruser from the webservice. Removes all related cookies.
+   * Logs out a single user from the webservice. Removes all related cookies.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
@@ -258,7 +250,7 @@ class AuthControllerHandler {
    */
   public logout = async (req: Request, res: Response) => {
     try {
-      const { jwtId } = getMasterUserSession(req, res);
+      const { jwtId } = getUserSession(req, res);
       await db.repositories.session.delete({ jwtId });
     } catch (error) {
       //
@@ -276,7 +268,7 @@ class AuthControllerHandler {
   };
 
   /**
-   * Registers a masteruser into the webservice. Exactly the same as 'createUser' in 'MasterUser' entity,
+   * Registers a user into the webservice. Exactly the same as 'createUser' in 'User' entity,
    * with same validations as in 'createUser'.
    *
    * @param req - Express.js's request object.
@@ -289,9 +281,9 @@ class AuthControllerHandler {
     // Validates whether the username or email or phone is already used or not. Use
     // parallel processing for speed.
     const [userByUsername, userByEmail, userByPhone] = await Promise.all([
-      services.masteruser.getMasterUser({ username }),
-      services.masteruser.getMasterUser({ email }),
-      services.masteruser.getMasterUser({ phoneNumber }),
+      services.user.getUser({ username }),
+      services.user.getUser({ email }),
+      services.user.getUser({ phoneNumber }),
     ]);
 
     // Perform checks and validations.
@@ -301,24 +293,19 @@ class AuthControllerHandler {
     }
 
     if (userByEmail) {
-      next(
-        new AppError('This email has been used by another masteruser!', 422)
-      );
+      next(new AppError('This email has been used by another user!', 422));
       return;
     }
 
     if (userByPhone) {
       next(
-        new AppError(
-          'This phone number has been used by another masteruser!',
-          422
-        )
+        new AppError('This phone number has been used by another user!', 422)
       );
       return;
     }
 
     const confirmationCode = randomUUID();
-    const masteruser = await services.masteruser.createMasterUser({
+    const user = await services.user.createUser({
       username,
       email,
       phoneNumber,
@@ -338,21 +325,13 @@ class AuthControllerHandler {
     // Send an email consisting of the activation codes.
     await new Email(email, name + ' ' + lastname).sendConfirmation(link);
 
-    try {
-      // create Profile associated with masteruser. Here we can add some distinct attribute to the profile.
-      await services.profile.createProfile(masteruser.masteruserID, {username, email, name, lastname, password})
-    } catch (error) {
-      next(new AppError('Error creating associated profile', 500));
-      return;
-    }
-
     // Send response.
     sendResponse({
       req,
       res,
       status: 'success',
       statusCode: 201,
-      data: masteruser,
+      data: user,
       message:
         'Successfully registered! Please check your email address for verification.',
       type: 'auth',
@@ -360,8 +339,8 @@ class AuthControllerHandler {
   };
 
   /**
-   * Resets a masteruser password. Should be the flow after 'forgotPassword' is called and the
-   * masteruser clicks on that link.
+   * Resets a user password. Should be the flow after 'forgotPassword' is called and the
+   * user clicks on that link.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
@@ -382,21 +361,19 @@ class AuthControllerHandler {
     }
 
     // Validates whether the token is the same or not.
-    const masteruser = await services.masteruser.getMasterUserComplete({
+    const user = await services.user.getUserComplete({
       forgotPasswordCode: token,
     });
-    if (!masteruser) {
-      next(
-        new AppError('There is no masteruser associated with the token.', 404)
-      );
+    if (!user) {
+      next(new AppError('There is no user associated with the token.', 404));
       return;
     }
 
-    // If masteruser is not active, deny request.
-    if (!masteruser.isActive) {
+    // If user is not active, deny request.
+    if (!user.isActive) {
       next(
         new AppError(
-          'This masteruser is not active. Please contact the administrator for reactivation.',
+          'This user is not active. Please contact the administrator for reactivation.',
           403
         )
       );
@@ -404,18 +381,21 @@ class AuthControllerHandler {
     }
 
     // If passwords are the same, we update them.
-    await services.masteruser.updateMasterUser(
-      { masteruserID: masteruser.masteruserID },
+    await services.user.updateUser(
+      { userID: user.userID },
       { password: newPassword, forgotPasswordCode: undefined }
     );
 
-    // Destroy all sessions related to this masteruser.
+    // Destroy all sessions related to this user.
     await db.repositories.session.delete({
-      masteruserPK: masteruser.masteruserPK,
+      userPK: user.userPK,
     });
 
-    // Send email to that masteruser notifying that their password has been reset.
-    await new Email(masteruser.email, masteruser.name + ' ' + masteruser.lastname).sendResetPassword();
+    // Send email to that user notifying that their password has been reset.
+    await new Email(
+      user.email,
+      user.name + ' ' + user.lastname
+    ).sendResetPassword();
 
     // Send response.
     sendResponse({
@@ -431,34 +411,34 @@ class AuthControllerHandler {
   };
 
   /**
-   * SendOTP sends an OTP to a masteruser with this algorithm:
-   * - Get masteruser data from session.
-   * - If masteruser has asked for OTP beforehand, do not allow until the related KVS is expired.
+   * SendOTP sends an OTP to a user with this algorithm:
+   * - Get user data from session.
+   * - If user has asked for OTP beforehand, do not allow until the related KVS is expired.
    * - Choose from query string: phone, email, or authenticator. Default is authenticator.
-   * - Generate TOTP using RFC 6238 algorithm with masteruser-specific properties.
-   * - If using authenticators, tell masteruser to verify TOTP as soon as possible.
+   * - Generate TOTP using RFC 6238 algorithm with user-specific properties.
+   * - If using authenticators, tell user to verify TOTP as soon as possible.
    * - Send TOTP to that media if applicable.
    * - Set 'hasAskedOTP' in cache to true.
-   * - Wait for masteruser to provide TOTP in 'verify' part of the endpoint.
+   * - Wait for user to provide TOTP in 'verify' part of the endpoint.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
    * @param next - Express.js's next function.
    */
   public sendOTP = async (req: Request, res: Response, next: NextFunction) => {
-    const { masteruserID } = getMasterUserSession(req, res);
+    const { userID } = getUserSession(req, res);
 
-    // Check the availability of the masteruser.
-    const masteruser = await services.masteruser.getMasterUserComplete({
-      masteruserID,
+    // Check the availability of the user.
+    const user = await services.user.getUserComplete({
+      userID,
     });
-    if (!masteruser) {
-      next(new AppError('MasterUser with this ID does not exist!', 404));
+    if (!user) {
+      next(new AppError('User with this ID does not exist!', 404));
       return;
     }
 
-    // If not yet expired, means that the masteruser has asked in 'successive' order and it is a potential to spam.
-    if (await CacheService.getHasAskedOTP(masteruserID)) {
+    // If not yet expired, means that the user has asked in 'successive' order and it is a potential to spam.
+    if (await CacheService.getHasAskedOTP(userID)) {
       next(
         new AppError(
           'You have recently asked for an OTP. Please wait 30 seconds before we process your request again.',
@@ -469,12 +449,9 @@ class AuthControllerHandler {
     }
 
     // Guaranteed to be 'email', 'sms', or 'authenticator' due to the validation layer.
-    const totp = generateDefaultTOTP(
-      masteruser.username,
-      masteruser.totpSecret
-    );
+    const totp = generateDefaultTOTP(user.username, user.totpSecret);
     if (req.query.media === 'email') {
-      await new Email(masteruser.email, masteruser.name + ' ' + masteruser.lastname).sendOTP(
+      await new Email(user.email, user.name + ' ' + user.lastname).sendOTP(
         totp.token
       );
     }
@@ -491,7 +468,7 @@ class AuthControllerHandler {
     }
 
     // If using authenticator, do nothing as its already there, increment redis instead.
-    await CacheService.setHasAskedOTP(masteruserID);
+    await CacheService.setHasAskedOTP(userID);
 
     // Send back response.
     sendResponse({
@@ -507,7 +484,7 @@ class AuthControllerHandler {
   };
 
   /**
-   * Updates the MFA secret of the currently logged in masteruser.
+   * Updates the MFA secret of the currently logged in user.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
@@ -518,24 +495,21 @@ class AuthControllerHandler {
     res: Response,
     next: NextFunction
   ) => {
-    const { masteruserID } = getMasterUserSession(req, res);
+    const { userID } = getUserSession(req, res);
 
-    // Fetch current masteruser.
-    const masteruser = await services.masteruser.getMasterUserComplete({
-      masteruserID,
+    // Fetch current user.
+    const user = await services.user.getUserComplete({
+      userID,
     });
-    if (!masteruser) {
-      next(new AppError('There is no masteruser with that ID.', 404));
+    if (!user) {
+      next(new AppError('There is no user with that ID.', 404));
       return;
     }
 
     // Regenerate new MFA secret.
     const newSecret = await nanoid();
-    const totp = generateDefaultTOTP(masteruser.username, newSecret);
-    await services.masteruser.updateMasterUser(
-      { masteruserID },
-      { totpSecret: newSecret }
-    );
+    const totp = generateDefaultTOTP(user.username, newSecret);
+    await services.user.updateUser({ userID }, { totpSecret: newSecret });
 
     // Send response.
     sendResponse({
@@ -550,7 +524,7 @@ class AuthControllerHandler {
   };
 
   /**
-   * Updates a password for the currently logged in masteruser.
+   * Updates a password for the currently logged in user.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
@@ -562,27 +536,24 @@ class AuthControllerHandler {
     next: NextFunction
   ) => {
     const { currentPassword, newPassword, confirmPassword } = req.body;
-    const { masteruserID } = getMasterUserSession(req, res);
+    const { userID } = getUserSession(req, res);
 
-    if (!masteruserID) {
+    if (!userID) {
       next(new AppError('No session detected. Please log in again.', 401));
       return;
     }
 
     // Fetch old data.
-    const masteruser = await services.masteruser.getMasterUserComplete({
-      masteruserID,
+    const user = await services.user.getUserComplete({
+      userID,
     });
-    if (!masteruser) {
-      next(new AppError('There is no masteruser with that ID.', 404));
+    if (!user) {
+      next(new AppError('There is no user with that ID.', 404));
       return;
     }
 
     // Compare old passwords.
-    const passwordsMatch = await verifyPassword(
-      masteruser.password,
-      currentPassword
-    );
+    const passwordsMatch = await verifyPassword(user.password, currentPassword);
     if (!passwordsMatch) {
       next(new AppError('Your previous password is wrong!', 401));
       return;
@@ -595,17 +566,17 @@ class AuthControllerHandler {
     }
 
     // Update new password.
-    await services.masteruser.updateMasterUser(
-      { masteruserID },
-      { password: newPassword }
-    );
+    await services.user.updateUser({ userID }, { password: newPassword });
 
-    // Send a confirmation email that the masteruser has successfully changed their password.
-    await new Email(masteruser.email, masteruser.name + ' ' + masteruser.lastname).sendUpdatePassword();
+    // Send a confirmation email that the user has successfully changed their password.
+    await new Email(
+      user.email,
+      user.name + ' ' + user.lastname
+    ).sendUpdatePassword();
 
     // Delete all of the sessions
     await db.repositories.session.delete({
-      masteruserPK: masteruser.masteruserPK,
+      userPK: user.userPK,
     });
 
     // Send back response.
@@ -621,7 +592,7 @@ class AuthControllerHandler {
   };
 
   /**
-   * Verifies a masteruser's email.
+   * Verifies a user's email.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
@@ -635,27 +606,27 @@ class AuthControllerHandler {
     const { code, email } = req.params;
 
     // Validate the code. We will obfuscate all error messages for obscurity.
-    const masteruser = await services.masteruser.getMasterUserComplete({
+    const user = await services.user.getUserComplete({
       email,
     });
-    if (!masteruser) {
+    if (!user) {
       next(new AppError('Invalid email verification code!', 400));
       return;
     }
 
-    if (!masteruser.confirmationCode) {
+    if (!user.confirmationCode) {
       next(new AppError('Invalid email verification code!', 400));
       return;
     }
 
-    if (code !== masteruser.confirmationCode) {
+    if (code !== user.confirmationCode) {
       next(new AppError('Invalid email verification code!', 400));
       return;
     }
 
     // Set 'isActive' to true and set code to not defined.
-    const updatedUser = await services.masteruser.updateMasterUser(
-      { masteruserID: masteruser.masteruserID },
+    const updatedUser = await services.user.updateUser(
+      { userID: user.userID },
       { isActive: true, email, confirmationCode: undefined }
     );
 
@@ -673,17 +644,17 @@ class AuthControllerHandler {
 
   /**
    * VerifyOTP verifies if a TOTP is valid or not valid. The algorithm:
-   * - Parse 'Basic' authentication. Also check if the masteruser is blocked or not (failed to input correct TOTP many times in successive order).
-   * - If the masteruser is blocked, send email / notification to the masteruser.
-   * - Get masteruser data from 'username' column of the authentication string.
-   * - Pull the masteruser's secret key from the database.
-   * - Validate the masteruser's TOTP. The input OTP will be fetched from the 'password' column of the authentication string.
-   * - If the TOTP is valid, give back JWS token. This is the masteruser's second session. If not valid, increment the 'TOTPAttempts' in cache.
+   * - Parse 'Basic' authentication. Also check if the user is blocked or not (failed to input correct TOTP many times in successive order).
+   * - If the user is blocked, send email / notification to the user.
+   * - Get user data from 'username' column of the authentication string.
+   * - Pull the user's secret key from the database.
+   * - Validate the user's TOTP. The input OTP will be fetched from the 'password' column of the authentication string.
+   * - If the TOTP is valid, give back JWS token. This is the user's second session. If not valid, increment the 'TOTPAttempts' in cache.
    * - Take note of the JTI, store it inside Redis cache for statefulness.
    * - Send back response.
    *
    * Token gained from this function will act as a signed cookie that can be used to authenticate oneself.
-   * Username is the masteruser's ID. The password is the masteruser's TOTP token.
+   * Username is the user's ID. The password is the user's TOTP token.
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
@@ -713,31 +684,24 @@ class AuthControllerHandler {
     }
 
     // Check whether username exists.
-    const masteruser = await services.masteruser.getMasterUserComplete({
-      masteruserID: username,
+    const user = await services.user.getUserComplete({
+      userID: username,
     });
-    if (!masteruser) {
-      this.invalidBasicAuth(
-        'MasterUser with that ID is not found.',
-        404,
-        res,
-        next
-      );
+    if (!user) {
+      this.invalidBasicAuth('User with that ID is not found.', 404, res, next);
       return;
     }
 
-    // If masteruser has reached 3 times, then block the masteruser's attempt.
-    // TODO: should send email/sms/push notification to the relevant masteruser
-    const attempts = await CacheService.getOTPAttempts(masteruser.masteruserID);
+    // If user has reached 3 times, then block the user's attempt.
+    // TODO: should send email/sms/push notification to the relevant user
+    const attempts = await CacheService.getOTPAttempts(user.userID);
     if (attempts && Number.parseInt(attempts, 10) === 3) {
-      // If masteruser is not 'email-locked', send security alert to prevent spam.
-      if (
-        !(await CacheService.getSecurityAlertEmailLock(masteruser.masteruserID))
-      ) {
-        await CacheService.setSecurityAlertEmailLock(masteruser.masteruserID);
+      // If user is not 'email-locked', send security alert to prevent spam.
+      if (!(await CacheService.getSecurityAlertEmailLock(user.userID))) {
+        await CacheService.setSecurityAlertEmailLock(user.userID);
         await new Email(
-          masteruser.email,
-          masteruser.name + ' ' + masteruser.lastname
+          user.email,
+          user.name + ' ' + user.lastname
         ).sendNotification();
       }
 
@@ -751,12 +715,9 @@ class AuthControllerHandler {
     }
 
     // Ensures that OTP has never been used before.
-    const usedOTP = await CacheService.getBlacklistedOTP(
-      masteruser.masteruserID,
-      password
-    );
+    const usedOTP = await CacheService.getBlacklistedOTP(user.userID, password);
     if (usedOTP) {
-      await CacheService.setOTPAttempts(masteruser.masteruserID);
+      await CacheService.setOTPAttempts(user.userID);
       this.invalidBasicAuth(
         'This OTP has expired. Please request it again in 30 seconds!',
         410,
@@ -767,9 +728,9 @@ class AuthControllerHandler {
     }
 
     // Validate OTP.
-    const validTOTP = validateDefaultTOTP(password, masteruser.totpSecret);
+    const validTOTP = validateDefaultTOTP(password, user.totpSecret);
     if (!validTOTP) {
-      await CacheService.setOTPAttempts(masteruser.masteruserID);
+      await CacheService.setOTPAttempts(user.userID);
       this.invalidBasicAuth(
         'Invalid authentication, wrong OTP code.',
         401,
@@ -780,18 +741,14 @@ class AuthControllerHandler {
     }
 
     // Make sure to blacklist the TOTP (according to the specs).
-    await CacheService.blacklistOTP(masteruser.masteruserID, password);
+    await CacheService.blacklistOTP(user.userID, password);
 
     // Generate JWS as the authorization ticket.
     const jti = await nanoid();
-    const token = await signJWS(
-      jti,
-      masteruser.masteruserID,
-      900 /** 15 min */
-    );
+    const token = await signJWS(jti, user.userID, 900 /** 15 min */);
 
     // Set OTP session by its JTI.
-    await CacheService.setOTPSession(jti, masteruser.masteruserID);
+    await CacheService.setOTPSession(jti, user.userID);
 
     // Send response.
     sendResponse({
@@ -800,8 +757,7 @@ class AuthControllerHandler {
       status: 'success',
       statusCode: 200,
       data: { token },
-      message:
-        'OTP verified. Special session has been given to the masteruser.',
+      message: 'OTP verified. Special session has been given to the user.',
       type: 'auth',
     });
   };
@@ -811,8 +767,8 @@ class AuthControllerHandler {
    * we do not use `WWW-Authenticate` like in RFC 7617? It is to prevent the
    * front-end from summoning the not-really-friendly authentication popup.
    *
-   * @param msg - Error message to be passed to the masteruser.
-   * @param code - HTTP status code for the masteruser.
+   * @param msg - Error message to be passed to the user.
+   * @param code - HTTP status code for the user.
    * @param res - Express.js's response object.
    * @param next - Express.js's next function.
    */
@@ -827,33 +783,33 @@ class AuthControllerHandler {
   };
 
   /**
-   * Sends the masteruser's authentication status to the client in the form of JSON response.
+   * Sends the user's authentication status to the client in the form of JSON response.
    * The 'type' of the response is authentication, as this one does not really
    * fit with the 'users' type. This intentionally returns both the authentication status
-   * AND the masteruser, so the front-end does not need to create two sequential requests just to get
-   * the current masteruser (this will be used in many requests in the front-end, so let's just keep our
+   * AND the user, so the front-end does not need to create two sequential requests just to get
+   * the current user (this will be used in many requests in the front-end, so let's just keep our
    * bandwith small).
    *
    * @param req - Express.js's request object.
    * @param res - Express.js's response object.
-   * @param isAuthenticated - Boolean value whether the masteruser is authenticated or not.
-   * @param isMFA - Boolean value whether the masteruser is on secure session or not.
-   * @param masteruser - The masteruser's data, or a null value.
+   * @param isAuthenticated - Boolean value whether the user is authenticated or not.
+   * @param isMFA - Boolean value whether the user is on secure session or not.
+   * @param user - The user's data, or a null value.
    */
   private sendUserStatus = (
     req: Request,
     res: Response,
     isAuthenticated: boolean,
     isMFA: boolean,
-    masteruser: Record<string, unknown> | null
+    user: Record<string, unknown> | null
   ) => {
     sendResponse({
       req,
       res,
       status: 'success',
       statusCode: 200,
-      data: { isAuthenticated, isMFA, masteruser },
-      message: "Successfully fetched the masteruser's status!",
+      data: { isAuthenticated, isMFA, user },
+      message: "Successfully fetched the user's status!",
       type: 'auth',
     });
   };

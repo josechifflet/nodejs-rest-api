@@ -1,9 +1,7 @@
 import attendance from './attendance';
-import masteruser from './masteruser';
-import profile from './profile';
+import user from './user';
 
 export const services = {
   attendance,
-  masteruser,
-  profile,
+  user,
 };
