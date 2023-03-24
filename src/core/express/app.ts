@@ -1,3 +1,6 @@
+import { expressMiddleware } from '@apollo/server/express4';
+import { json } from 'body-parser';
+import cookieParser from 'cookie-parser';
 import express from 'express';
 import helmet from 'helmet';
 import hpp from 'hpp';
@@ -5,77 +8,109 @@ import morgan from 'morgan';
 
 import config from '../../config';
 import AttendanceRouter from '../../v1/attendance/router';
-import AuthRouter from '../../v1/authentication/router';
+import AuthRouter from '../../v1/auth/router';
+import HealthRouter from '../../v1/health/router';
+import SessionRouter from '../../v1/session/routes';
 import UserRouter from '../../v1/user/router';
+import { intializeApolloServer } from '../apollo/server';
 import errorHandler from '../errorHandler';
 import accept from '../middleware/accept';
 import busyHandler from '../middleware/busy-handler';
 import { errorLogger, successLogger } from '../middleware/logger';
 import notFound from '../middleware/not-found';
+import session from '../middleware/session';
 import slowDown from '../middleware/slow-down';
 import xPoweredBy from '../middleware/x-powered-by';
 import xRequestedWith from '../middleware/x-requested-with';
 import xst from '../middleware/xst';
+import { startServer } from './start-server';
 
-// Create Express application.
-const app = express();
+/**
+ * Creates an Express application.
+ */
+class App {
+  private app: express.Application | undefined;
 
-// Allow proxies on our nginx server in production.
-if (config.NODE_ENV === 'production') app.enable('trust proxy');
+  public constructAsync = async () => {
+    // Create Express application.
+    this.app = express();
 
-// Use logging on application.
-if (config.NODE_ENV === 'production')
-  app.use(
-    morgan(
-      ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :response-time ms'
-    )
-  );
-else app.use(morgan('dev'));
+    const apolloServer = await intializeApolloServer(this.app);
+    this.app.use('/graphql', json(), expressMiddleware(apolloServer));
 
-// Security headers.
-app.use(helmet({ frameguard: { action: 'deny' }, hidePoweredBy: false }));
+    // Allow proxies on our nginx server in production.
+    if (config.NODE_ENV === 'production') this.app.enable('trust proxy');
 
-app.use('/api/health', (_, res) => res.status(200).send());
+    // Use logging on application.
+    if (config.NODE_ENV === 'production')
+      this.app.use(
+        morgan(
+          ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :response-time ms'
+        )
+      );
+    else this.app.use(morgan('dev'));
 
-// Enable special `X-Powered-By` header.
-app.use(xPoweredBy());
+    // Security headers.
+    this.app.use(
+      helmet({ frameguard: { action: 'deny' }, hidePoweredBy: false })
+    );
 
-// Check for CSRF via the Header method.
-app.use(xRequestedWith());
+    // Enable special `X-Powered-By` header.
+    this.app.use(xPoweredBy());
 
-// Validate `Accept` header.
-app.use(accept());
+    // Check for CSRF via the Header method.
+    this.app.use(xRequestedWith());
 
-// Handle if server is too busy.
-app.use(busyHandler());
+    // Validate `Accept` header.
+    this.app.use(accept());
 
-// Prevent parameter pollution.
-app.use(hpp());
+    // Handle if server is too busy.
+    this.app.use(busyHandler());
 
-// Only allow the following methods: [OPTIONS, HEAD, CONNECT, GET, POST, PATCH, PUT, DELETE].
-app.use(xst());
+    // Load signed cookie parser. JSON parser is loaded in each required
+    // endpoints in a case-by-case basis.
+    this.app.use(cookieParser(config.COOKIE_SECRET));
 
-// Define handlers.
-const attendanceRouter = AttendanceRouter();
-const authRouter = AuthRouter();
-const userRouter = UserRouter();
+    // Prevent parameter pollution.
+    this.app.use(hpp());
 
-// Log requests (successful requests).
-app.use(successLogger);
+    // Only allow the following methods: [OPTIONS, HEAD, CONNECT, GET, POST, PATCH, PUT, DELETE].
+    this.app.use(xst());
 
-// Define API routes. Throttle '/api' route to prevent spammers.
-app.use('/api', slowDown(75));
-app.use('/api/v1/authentication', authRouter);
-app.use('/api/v1/attendances', attendanceRouter);
-app.use('/api/v1/users', userRouter);
+    // Prepare to use Express Sessions.
+    this.app.use(session());
 
-// Catch-all routes for API.
-app.all('*', notFound());
+    // Define handlers.
+    const attendanceRouter = AttendanceRouter();
+    const authRouter = AuthRouter();
+    const healthRouter = HealthRouter();
+    const sessionRouter = SessionRouter();
+    const userRouter = UserRouter();
 
-// Log errors.
-app.use(errorLogger);
+    // Log requests (successful requests).
+    this.app.use(successLogger);
 
-// Define error handlers.
-app.use(errorHandler);
+    // Define API routes. Throttle '/api' route to prevent spammers.
+    this.app.use('/api', slowDown(75));
+    this.app.use('/api/v1', healthRouter);
+    this.app.use('/api/v1/auth', authRouter);
+    this.app.use('/api/v1/attendances', attendanceRouter);
+    this.app.use('/api/v1/sessions', sessionRouter);
+    this.app.use('/api/v1/users', userRouter);
 
-export default app;
+    // Catch-all routes for API.
+    this.app.all('*', notFound());
+
+    // Log errors.
+    this.app.use(errorLogger);
+
+    // Define error handlers.
+    this.app.use(errorHandler);
+  };
+
+  public start = async () => {
+    if (this.app) startServer(this.app);
+  };
+}
+
+export default new App();

@@ -56,6 +56,7 @@
     "firebase": "^9.17.1",
     "firebase-admin": "^11.5.0",
     "graphql": "^16.6.0",
+    "graphql-ws": "^5.12.0",
     "handy-redis": "^2.3.1",
     "helmet": "^6.0.1",
     "hpp": "^0.2.3",
