@@ -14,7 +14,7 @@ const UserValidation = {
         .trim()
         .required()
         .max(20)
-        .pattern(/^[-+0-9]+$/, { name: 'phone' }),
+        .pattern(/^[-+0-9]+$/, { name: 'phoneNumber' }),
       password: joi.string().required().min(8).max(64),
       name: joi.string().trim().required().max(30),
       lastname: joi.string().trim().required().max(30),
@@ -44,7 +44,7 @@ const UserValidation = {
         .string()
         .trim()
         .max(20)
-        .pattern(/^[-+0-9]+$/, { name: 'phone' }),
+        .pattern(/^[-+0-9]+$/, { name: 'phoneNumber' }),
       name: joi.string().trim().max(30),
       lastname: joi.string().trim().max(30),
     }),
@@ -59,7 +59,7 @@ const UserValidation = {
         .string()
         .trim()
         .max(20)
-        .pattern(/^[-+0-9]+$/, { name: 'phone' }),
+        .pattern(/^[-+0-9]+$/, { name: 'phoneNumber' }),
       password: joi.string().min(8).max(64),
       name: joi.string().trim().max(30),
       lastname: joi.string().trim().max(30),

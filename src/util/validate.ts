@@ -18,6 +18,6 @@ import { validate as expressValidation } from 'express-validation';
  * @returns Express Validation function callback.
  */
 const validate = (schema: schema) =>
-  expressValidation(schema, { context: true });
+  expressValidation(schema, { context: true, statusCode: 422 });
 
 export default validate;

@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   postgresdb:
-    image: postgres:14.5-bullseye
+    image: postgres:15.2-bullseye
     restart: always
     volumes:
       - 'postgresdb_data:/var/lib/postgresql/data'
@@ -11,36 +11,36 @@ services:
       POSTGRES_USER: 'postgres'
       POSTGRES_DB: 'nodejs-rest-api-dev'
     ports:
-      - '5431:5432'
+      - '5430:5432'
     networks:
       - infra
 
-  redis:
-    image: redis:7.0.4-bullseye
-    restart: always
-    ports:
-      - 6379:6379
-    networks:
-      - infra
+  # redis:
+  #   image: redis:7.0.4-bullseye
+  #   restart: always
+  #   ports:
+  #     - 6379:6379
+  #   networks:
+  #     - infra
 
-  mongodb:
-    image: mongo:latest
-    restart: always
-    container_name: mongodb
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=root
-      - MONGO_INITDB_ROOT_PASSWORD=password
-    restart: always
-    volumes:
-      - "mongodb_data:/data/db"
-    ports:
-      - "27017:27017"
-    networks:
-      - infra
+  # mongodb:
+  #   image: mongo:latest
+  #   restart: always
+  #   container_name: mongodb
+  #   environment:
+  #     - MONGO_INITDB_ROOT_USERNAME=root
+  #     - MONGO_INITDB_ROOT_PASSWORD=password
+  #   restart: always
+  #   volumes:
+  #     - "mongodb_data:/data/db"
+  #   ports:
+  #     - "27017:27017"
+  #   networks:
+  #     - infra
 
 networks:
   infra:
 
 volumes:
   postgresdb_data:
-  mongodb_data:
+  # mongodb_data:

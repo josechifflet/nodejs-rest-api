@@ -11,6 +11,7 @@ import AuthRouter from '../../v1/auth/router';
 import HealthRouter from '../../v1/health/router';
 import SessionRouter from '../../v1/session/routes';
 import UserRouter from '../../v1/user/router';
+import WebhooksRouter from '../../v1/webhooks/routes';
 import { intializeApolloServer } from '../apollo/server';
 import errorHandler from '../errorHandler';
 import accept from '../middleware/accept';
@@ -33,12 +34,6 @@ class App {
     // Create Express application.
     this.app = express();
 
-    const apolloServer = await intializeApolloServer(this.app);
-    this.app.use('/graphql', json(), expressMiddleware(apolloServer));
-
-    // Allow proxies on our nginx server in production.
-    if (config.NODE_ENV === 'production') this.app.enable('trust proxy');
-
     // Use logging on application.
     if (config.NODE_ENV === 'production')
       this.app.use(
@@ -47,6 +42,13 @@ class App {
         )
       );
     else this.app.use(morgan('dev'));
+
+    const apolloServer = await intializeApolloServer(this.app);
+    this.app.use('/graphql', json(), expressMiddleware(apolloServer));
+    this.app.use('/api/v1/webhooks', WebhooksRouter());
+
+    // Allow proxies on our nginx server in production.
+    if (config.NODE_ENV === 'production') this.app.enable('trust proxy');
 
     // Security headers.
     this.app.use(
@@ -71,23 +73,16 @@ class App {
     // Only allow the following methods: [OPTIONS, HEAD, CONNECT, GET, POST, PATCH, PUT, DELETE].
     this.app.use(xst());
 
-    // Define handlers.
-    const attendanceRouter = AttendanceRouter();
-    const authRouter = AuthRouter();
-    const healthRouter = HealthRouter();
-    const sessionRouter = SessionRouter();
-    const userRouter = UserRouter();
-
     // Log requests (successful requests).
     this.app.use(successLogger);
 
     // Define API routes. Throttle '/api' route to prevent spammers.
     this.app.use('/api', slowDown(75));
-    this.app.use('/api/v1', healthRouter);
-    this.app.use('/api/v1/auth', authRouter);
-    this.app.use('/api/v1/attendances', attendanceRouter);
-    this.app.use('/api/v1/sessions', sessionRouter);
-    this.app.use('/api/v1/users', userRouter);
+    this.app.use('/api/v1', HealthRouter());
+    this.app.use('/api/v1/auth', AuthRouter());
+    this.app.use('/api/v1/attendances', AttendanceRouter());
+    this.app.use('/api/v1/sessions', SessionRouter());
+    this.app.use('/api/v1/users', UserRouter());
 
     // Catch-all routes for API.
     this.app.all('*', notFound());
