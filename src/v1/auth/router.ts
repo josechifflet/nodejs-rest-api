@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import bodyParser from '../../core/middleware/body-parser';
 import hasJWT from '../../core/middleware/has-jwt';
-import hasUserSession from '../../core/middleware/has-user-session';
+import hasSession from '../../core/middleware/has-session';
 import rateLimit from '../../core/middleware/rate-limit';
 import asyncHandler from '../../util/async-handler';
 import validate from '../../util/validate';
@@ -17,14 +17,10 @@ import AuthValidation from './validation';
  */
 const AuthRouter = () => {
   const router = Router();
-  const authRateLimit = rateLimit(15, 'auth-master-user');
+  const authRateLimit = rateLimit(15, 'auth');
 
   // General endpoint, (almost) no rate limit.
-  router.get(
-    '/status',
-    asyncHandler(hasUserSession),
-    asyncHandler(AuthController.getStatus)
-  );
+  router.get('/status', AuthController.getStatus);
 
   // Logs in a single user.
   router.post(
@@ -36,11 +32,7 @@ const AuthRouter = () => {
   );
 
   // Logs out a single user.
-  router.post(
-    '/logout',
-    asyncHandler(hasUserSession),
-    asyncHandler(AuthController.logout)
-  );
+  router.post('/logout', AuthController.logout);
 
   // Allow user to forgot their own password.
   router.post(
@@ -56,13 +48,13 @@ const AuthRouter = () => {
     .route('/otp')
     .post(
       authRateLimit,
-      asyncHandler(hasUserSession),
+      asyncHandler(hasSession),
       validate(AuthValidation.sendOTP),
       asyncHandler(AuthController.sendOTP)
     )
     .put(
       authRateLimit,
-      asyncHandler(hasUserSession),
+      asyncHandler(hasSession),
       asyncHandler(AuthController.verifyOTP)
     );
 
@@ -88,7 +80,7 @@ const AuthRouter = () => {
   router.patch(
     '/update-mfa',
     authRateLimit,
-    asyncHandler(hasUserSession),
+    asyncHandler(hasSession),
     asyncHandler(hasJWT),
     asyncHandler(AuthController.updateMFA)
   );
@@ -97,7 +89,7 @@ const AuthRouter = () => {
   router.patch(
     '/update-password',
     rateLimit(2, 'auth-password-update'),
-    asyncHandler(hasUserSession),
+    asyncHandler(hasSession),
     bodyParser,
     validate(AuthValidation.updatePassword),
     asyncHandler(AuthController.updatePassword)

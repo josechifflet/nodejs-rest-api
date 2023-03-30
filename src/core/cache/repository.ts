@@ -1,3 +1,7 @@
+import { SessionData } from 'express-session';
+
+import { db } from '../../db';
+import { Session } from '../../db/models/session.model';
 import { getCacheValue, setCacheValue } from './helper';
 
 /**
@@ -7,49 +11,49 @@ class CacheRepositoryHandler {
   /**
    * Sets an OTP to be blacklisted in the Redis cache for 120 seconds.
    *
-   * @param userID - User ID that has used that OTP.
+   * @param masteruserID - User ID that has used that OTP.
    * @param otp - One-time password.
    * @returns Asynchronous number, response returned from Redis.
    */
-  blacklistOTP = async (userID: string, otp: string) =>
-    setCacheValue(`blacklisted-otp:${userID}:${otp}`, '1');
+  blacklistOTP = async (masteruserID: string, otp: string) =>
+    setCacheValue(`blacklisted-otp:${masteruserID}:${otp}`, '1');
 
   /**
    * Gets an OTP from the Redis cache in order to check if it is blacklisted or not.
    *
-   * @param userID - User ID of the current user.
+   * @param masteruserID - User ID of the current user.
    * @param otp - One-time password.
    * @returns Asynchronous number, response returned from Redis.
    */
-  getBlacklistedOTP = async (userID: string, otp: string) =>
-    getCacheValue(`blacklisted-otp:${userID}:${otp}`, 120);
+  getBlacklistedOTP = async (masteruserID: string, otp: string) =>
+    getCacheValue(`blacklisted-otp:${masteruserID}:${otp}`, 120);
 
   /**
    * Gets the total number of times the user tries to reset their password.
    *
-   * @param userID - User ID.
+   * @param masteruserID - User ID.
    * @returns Number of attempts the user tried to reset their password.
    */
-  getForgotPasswordAttempts = async (userID: string) =>
-    getCacheValue(`forgot-password-attempts:${userID}`, 7200);
+  getForgotPasswordAttempts = async (masteruserID: string) =>
+    getCacheValue(`forgot-password-attempts:${masteruserID}`, 7200);
 
   /**
    * Gets whether the user has asked OTP or not.
    *
-   * @param userID - A user's ID
+   * @param masteruserID - A user's ID
    * @returns A promise consisting of the value, or null.
    */
-  getHasAskedOTP = async (userID: string) =>
-    getCacheValue(`asked-otp:${userID}`, 30);
+  getHasAskedOTP = async (masteruserID: string) =>
+    getCacheValue(`asked-otp:${masteruserID}`, 30);
 
   /**
    * Gets the number of OTP attempts that is done by a user.
    *
-   * @param userID - ID of the user.
+   * @param masteruserID - ID of the user.
    * @returns A promise consisting of the value, or null.
    */
-  getOTPAttempts = async (userID: string) =>
-    getCacheValue(`otp-attempts:${userID}`, 86400);
+  getOTPAttempts = async (masteruserID: string) =>
+    getCacheValue(`otp-attempts:${masteruserID}`, 86400);
 
   /**
    * Gets the OTP session related to a JTI.
@@ -62,31 +66,31 @@ class CacheRepositoryHandler {
   /**
    * Gets the lock used to send security alert emails.
    *
-   * @param userID - ID of the user.
+   * @param masteruserID - ID of the user.
    * @returns Value to be used.
    */
-  getSecurityAlertEmailLock = async (userID: string) =>
-    getCacheValue(`security-alert-email-lock:${userID}`, 900);
+  getSecurityAlertEmailLock = async (masteruserID: string) =>
+    getCacheValue(`security-alert-email-lock:${masteruserID}`, 900);
 
   /**
    * Sets or increments the number of attempts of a password reset of a user. Default
    * TTL is set to 7200 seconds to 2 hours before one can ask to reset password again.
    *
-   * @param userID - User ID.
+   * @param masteruserID - User ID.
    * @returns Asynchronous 'OK'.
    */
-  setForgotPasswordAttempts = async (userID: string) => {
+  setForgotPasswordAttempts = async (masteruserID: string) => {
     const currentAttempts = await getCacheValue(
-      `forgot-password-attempts:${userID}`,
+      `forgot-password-attempts:${masteruserID}`,
       7200
     );
     if (currentAttempts === null) {
-      return setCacheValue(`forgot-password-attempts:${userID}`, '1');
+      return setCacheValue(`forgot-password-attempts:${masteruserID}`, '1');
     }
 
     const attempts = +currentAttempts + 1;
     return setCacheValue(
-      `forgot-password-attempts:${userID}`,
+      `forgot-password-attempts:${masteruserID}`,
       attempts.toString()
     );
   };
@@ -95,30 +99,30 @@ class CacheRepositoryHandler {
    * Sets in the cache whether the user has asked for OTP or not.
    * TTL is 30 seconds. This will be used to prevent a user's spamming for OTP requests.
    *
-   * @param userID - ID of the user.
+   * @param masteruserID - ID of the user.
    * @returns Asynchronous 'OK'.
    */
-  setHasAskedOTP = async (userID: string) =>
-    setCacheValue(`asked-otp:${userID}`, '1');
+  setHasAskedOTP = async (masteruserID: string) =>
+    setCacheValue(`asked-otp:${masteruserID}`, '1');
 
   /**
    * Sets the number of OTP 'wrong' attempts of a single user.
    * TTL is 86400 seconds or a single day. Will use Redis's 'INCR' method to ensure atomic operations.
    *
-   * @param userID - ID of the user.
+   * @param masteruserID - ID of the user.
    * @returns Asynchronous 'OK'.
    */
-  setOTPAttempts = async (userID: string) => {
+  setOTPAttempts = async (masteruserID: string) => {
     const currentAttempts = await getCacheValue(
-      `otp-attempts:${userID}`,
+      `otp-attempts:${masteruserID}`,
       86400
     );
     if (currentAttempts === null) {
-      return setCacheValue(`otp-attempts:${userID}`, '1');
+      return setCacheValue(`otp-attempts:${masteruserID}`, '1');
     }
 
     const attempts = +currentAttempts + 1;
-    return setCacheValue(`otp-attempts:${userID}`, attempts.toString());
+    return setCacheValue(`otp-attempts:${masteruserID}`, attempts.toString());
   };
 
   /**
@@ -135,11 +139,81 @@ class CacheRepositoryHandler {
    * Sets the user to be 'email-locked', that is do not send security alert to the user in repeat
    * to prevent SPAM.
    *
-   * @param userID - ID of the user.
+   * @param masteruserID - ID of the user.
    * @returns Asynchronous 'OK'.
    */
-  setSecurityAlertEmailLock = async (userID: string) =>
-    setCacheValue(`security-alert-email-lock:${userID}`, '1');
+  setSecurityAlertEmailLock = async (masteruserID: string) =>
+    setCacheValue(`security-alert-email-lock:${masteruserID}`, '1');
+
+  /**
+   * Deletes a single session from the cache.
+   *
+   * @param sessionID - Session identifier.
+   * @returns Asynchronous number, response returned from Redis.
+   */
+  deleteSession = async (sessionID: string) =>
+    db.repositories.session.delete({ id: sessionID });
+
+  /**
+   * Deletes all sessions related to this user.
+   *
+   * @param ID - User ID.
+   * @returns Asynchronous numbers, which are the responses returned from Redis.
+   */
+  deleteUserSessions = async (ID: string) => {
+    const sessions = (await this.allSessions()).filter((s) => s.ID === ID);
+
+    return Promise.all(sessions.map(async (s) => this.deleteSession(s.id)));
+  };
+
+  /**
+   * Returns all sessions that is in this webservice.
+   *
+   * @returns All sessions in the webservice.
+   */
+  getSessions = async () => this.allSessions();
+
+  /**
+   * Fetches all sessions that are specific to a single user.
+   *
+   * @param ID - User ID.
+   * @returns All sessions specific to a single user.
+   */
+  getUserSessions = async (ID: string) =>
+    (await this.allSessions()).filter((sess) => sess.ID === ID);
+
+  /**
+   * Fetches all related data that matches to an expression in Session Table. Usually
+   * used in order to fetch all key-value pairs with the right pattern.
+   *
+   * @returns All results of the 'SCAN' operation.
+   */
+  private scanAll = async () => db.repositories.session.find();
+
+  /**
+   * Fetches all sessions that are available in the Redis cache.
+   *
+   * @returns All sessions in the Redis database.
+   */
+  private allSessions = async () => {
+    // Seek and fetch all active sessions.
+    const activeSessionsCached: Session[] = await this.scanAll();
+
+    // Fetch all session data from available session IDs. The 'JSON.parse'
+    // is required as Redis stores all data in its stringified form. Also
+    // pass the session ID for easier deletion on the front-end. Perform parallel
+    // processing with 'await Promise.all' to save time.
+    const sessions = await Promise.all(
+      activeSessionsCached.map(async (sess) => {
+        const data = sess.data;
+        const sid = sess.id;
+
+        return { ...(JSON.parse(data) as SessionData), sid };
+      })
+    );
+
+    return sessions;
+  };
 }
 
 export const CacheRepository = new CacheRepositoryHandler();

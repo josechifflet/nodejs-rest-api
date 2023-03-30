@@ -1,11 +1,11 @@
 import app from './core/express/app';
-import { startServer } from './core/express/start-server';
-import logger from './util/logger';
+import log from './util/tslog';
 
 (async () => {
   try {
-    await startServer(app);
+    await app.constructAsync();
+    await app.start();
   } catch (err) {
-    logger.error(`Exec file error.`);
+    log.error(`Exec file error: ${err}`);
   }
 })();

@@ -1,6 +1,5 @@
 import { expressMiddleware } from '@apollo/server/express4';
 import { json } from 'body-parser';
-import cookieParser from 'cookie-parser';
 import express from 'express';
 import helmet from 'helmet';
 import hpp from 'hpp';
@@ -18,7 +17,6 @@ import accept from '../middleware/accept';
 import busyHandler from '../middleware/busy-handler';
 import { errorLogger, successLogger } from '../middleware/logger';
 import notFound from '../middleware/not-found';
-import session from '../middleware/session';
 import slowDown from '../middleware/slow-down';
 import xPoweredBy from '../middleware/x-powered-by';
 import xRequestedWith from '../middleware/x-requested-with';
@@ -67,18 +65,11 @@ class App {
     // Handle if server is too busy.
     this.app.use(busyHandler());
 
-    // Load signed cookie parser. JSON parser is loaded in each required
-    // endpoints in a case-by-case basis.
-    this.app.use(cookieParser(config.COOKIE_SECRET));
-
     // Prevent parameter pollution.
     this.app.use(hpp());
 
     // Only allow the following methods: [OPTIONS, HEAD, CONNECT, GET, POST, PATCH, PUT, DELETE].
     this.app.use(xst());
-
-    // Prepare to use Express Sessions.
-    this.app.use(session());
 
     // Define handlers.
     const attendanceRouter = AttendanceRouter();

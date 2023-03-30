@@ -11,14 +11,12 @@ import AppError from '../../util/app-error';
 const hasRole =
   (...roles: string[]) =>
   async (req: Request, _: Response, next: NextFunction) => {
-    if (!req.session.userID) {
+    if (!req.session.ID) {
       next(new AppError('Session not found. Please log in again!', 401));
       return;
     }
 
-    const user = await UserService.getUser({
-      userID: req.session.userID,
-    });
+    const user = await UserService.getUser({ userID: req.session.ID });
     if (!user) {
       next(new AppError('User with that ID is not found.', 404));
       return;

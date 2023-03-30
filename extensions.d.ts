@@ -1,24 +1,14 @@
-import { UserSessionDataSchemaType } from './src/types/userSession';
-import { ProfileSessionDataSchemaType } from './src/types/profileSession';
+import session from 'express-session';
 
 declare module 'express-session' {
-  interface SessionData {
-    userID?: string;
-    lastActive?: string;
-    sessionInfo?: {
-      device?: string;
-      ip?: string;
+  interface SessionData extends session.Session {
+    ID: string;
+    lastActive: string;
+    sessionInfo: {
+      device: string;
+      ip: string;
     };
-    signedIn?: string;
-  }
-}
-
-declare module 'express' {
-  interface Response {
-    locals: {
-      userSession?: UserSessionDataSchemaType;
-      profileSession?: ProfileSessionDataSchemaType;
-    };
+    signedIn: string;
   }
 }
 

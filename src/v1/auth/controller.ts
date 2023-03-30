@@ -7,24 +7,24 @@ import { CacheService } from '../../core/cache/service';
 import Email from '../../core/email';
 import { generateDefaultTOTP, validateDefaultTOTP } from '../../core/rfc6238';
 import { parseBasicAuth } from '../../core/rfc7617';
-import { db } from '../../db';
+import { User } from '../../db/models/user.model';
 import { services } from '../../services';
-import { MASTERUSER_AUTHORIZATION_HEADER } from '../../types/consts';
 import AppError from '../../util/app-error';
+import setCookie from '../../util/cookies';
 import getDeviceID from '../../util/device-id';
-import getUserSession from '../../util/get-user-session';
-import { extractJWTFromHeader, signJWS, verifyToken } from '../../util/jwt';
+import { extractJWT, signJWS, verifyToken } from '../../util/jwt';
 import { verifyPassword } from '../../util/passwords';
 import randomBytes from '../../util/random-bytes';
 import safeCompare from '../../util/safe-compare';
 import sendResponse from '../../util/send-response';
 
 /**
- * User Authentication controller, forwarded from 'handler'.
+ * Authentication controller, forwarded from 'handler'.
  */
 class AuthControllerHandler {
   /**
-   * Gets the user's status.
+   * Gets the user's status (is normally authenticated and is MFA authenticated). The authentication
+   * process is similar to the ones in 'has-session.ts' and 'has-jwt.ts'.
    * This is a special middleware. It should have no 'next', and this middleware
    * will ignore ANY errors that might be in the way. If an error is found, the user
    * will not be authenticated and will not throw an 'AppError'.
@@ -34,10 +34,33 @@ class AuthControllerHandler {
    */
   public getStatus = async (req: Request, res: Response) => {
     try {
-      // Extract token and validate
-      const token = extractJWTFromHeader(req, MASTERUSER_AUTHORIZATION_HEADER);
+      // Check session.
+      if (!req.session.ID) {
+        this.sendUserStatus(req, res, false, false, null);
+        return;
+      }
+
+      // Make sure that the user exists in the database.
+      const user = await services.user.getUserComplete({
+        userID: req.session.ID,
+      });
+
+      if (!user) {
+        this.sendUserStatus(req, res, false, false, null);
+        return;
+      }
+
+      // Make sure that the user is not blocked.
+      if (!user.isActive) {
+        this.sendUserStatus(req, res, false, false, null);
+        return;
+      }
+
+      // Extract token and validate. From this point on, the user is defined (authenticated)
+      // and will be sent back as part of the response (not null as in the previous ones).
+      const token = extractJWT(req);
       if (!token) {
-        this.sendUserStatus(req, res, true, false, null);
+        this.sendUserStatus(req, res, true, false, user);
         return;
       }
 
@@ -46,27 +69,27 @@ class AuthControllerHandler {
       try {
         decoded = await verifyToken(token);
       } catch {
-        this.sendUserStatus(req, res, true, false, null);
+        this.sendUserStatus(req, res, true, false, user);
         return;
       }
 
       // Verify JTI.
       if (!decoded.payload.jti) {
-        this.sendUserStatus(req, res, true, false, null);
+        this.sendUserStatus(req, res, true, false, user);
         return;
       }
 
-      // Check the token id exists in the session's table
-      // Check in an unlikely scenario: a user has already deleted his account but their session is still active.
-      const [user, session] = await Promise.all([
-        services.user.getUser({
-          userID: decoded.payload.sub,
-        }),
-        db.repositories.session.findOneBy({ jwtId: decoded.payload.jti }),
-      ]);
-      if (!session || !user) {
-        this.sendUserStatus(req, res, true, false, null);
+      // Checks whether JTI exists or not in the cache.
+      const ID = await CacheService.getOTPSession(decoded.payload.jti);
+      if (!ID) {
+        this.sendUserStatus(req, res, true, false, user);
         return;
+      }
+
+      // Check if JTI is equal to the current session, and ensure that the subject
+      // is equal to the user ID as well.
+      if (req.session.ID !== ID || decoded.payload.sub !== ID) {
+        this.sendUserStatus(req, res, true, false, user);
       }
 
       // Send final response that the user is properly authenticated and authorized.
@@ -211,33 +234,37 @@ class AuthControllerHandler {
     delete filteredUser.confirmationCode;
     delete filteredUser.forgotPasswordCode;
 
-    const jwtId = randomUUID();
-    const jwt = await signJWS(jwtId, user.userID, 525600 /** 1 year */);
+    // Re-generate session to prevent multiple users sharing one session ID.
+    req.session.regenerate((err) => {
+      if (err) {
+        next(new AppError('Failed to initialize a secure session.', 500));
+      }
 
-    // Save session information.
-    const userPK = user.userPK;
-    const lastActive = Date.now().toString();
-    const sessionInfo = getDeviceID(req);
-    const signedIn = Date.now().toString();
+      // Set signed cookies with session information.
+      req.session.ID = user.userID;
+      req.session.lastActive = Date.now().toString();
+      req.session.sessionInfo = getDeviceID(req);
+      req.session.signedIn = Date.now().toString();
 
-    await db.repositories.session.save({
-      jwtId,
-      userPK,
-      lastActive,
-      sessionInfoDevice: sessionInfo.device,
-      sessionInfoIp: sessionInfo.ip,
-      signedIn,
-    });
+      // Remove MFA session cookie if it exists.
+      setCookie({
+        req,
+        res,
+        name: config.JWT_COOKIE_NAME,
+        value: 'loggedOut',
+        maxAge: 10,
+      });
 
-    // Send response.
-    sendResponse({
-      req,
-      res,
-      status: 'success',
-      statusCode: 200,
-      data: { jwt, user: filteredUser },
-      message: 'Logged in successfully!',
-      type: 'auth',
+      // Send response.
+      sendResponse({
+        req,
+        res,
+        status: 'success',
+        statusCode: 200,
+        data: filteredUser,
+        message: 'Logged in successfully!',
+        type: 'auth',
+      });
     });
   };
 
@@ -248,22 +275,22 @@ class AuthControllerHandler {
    * @param res - Express.js's response object.
    * @param next - Express.js's next function.
    */
-  public logout = async (req: Request, res: Response) => {
-    try {
-      const { jwtId } = getUserSession(req, res);
-      await db.repositories.session.delete({ jwtId });
-    } catch (error) {
-      //
-    }
+  public logout = (req: Request, res: Response, next: NextFunction) => {
+    req.session.destroy((err) => {
+      if (err) {
+        next(new AppError('Failed to log out. Please try again later.', 500));
+        return;
+      }
 
-    sendResponse({
-      req,
-      res,
-      status: 'success',
-      statusCode: 200,
-      data: [],
-      message: 'Logged out successfully!',
-      type: 'auth',
+      sendResponse({
+        req,
+        res,
+        status: 'success',
+        statusCode: 200,
+        data: [],
+        message: 'Logged out successfully!',
+        type: 'auth',
+      });
     });
   };
 
@@ -323,7 +350,7 @@ class AuthControllerHandler {
     const link = `${req.protocol}://${req.hostname}${withPort}/verify-email?code=${confirmationCode}&email=${email}`;
 
     // Send an email consisting of the activation codes.
-    await new Email(email, name + ' ' + lastname).sendConfirmation(link);
+    await new Email(email, username).sendConfirmation(link);
 
     // Send response.
     sendResponse({
@@ -361,9 +388,7 @@ class AuthControllerHandler {
     }
 
     // Validates whether the token is the same or not.
-    const user = await services.user.getUserComplete({
-      forgotPasswordCode: token,
-    });
+    const user = await services.user.getUser({ forgotPasswordCode: token });
     if (!user) {
       next(new AppError('There is no user associated with the token.', 404));
       return;
@@ -387,9 +412,7 @@ class AuthControllerHandler {
     );
 
     // Destroy all sessions related to this user.
-    await db.repositories.session.delete({
-      userPK: user.userPK,
-    });
+    await CacheService.deleteUserSessions(user.userID);
 
     // Send email to that user notifying that their password has been reset.
     await new Email(
@@ -426,19 +449,22 @@ class AuthControllerHandler {
    * @param next - Express.js's next function.
    */
   public sendOTP = async (req: Request, res: Response, next: NextFunction) => {
-    const { userID } = getUserSession(req, res);
+    const { ID } = req.session;
+
+    if (!ID) {
+      next(new AppError('No session detected. Please log in again.', 401));
+      return;
+    }
 
     // Check the availability of the user.
-    const user = await services.user.getUserComplete({
-      userID,
-    });
+    const user = await services.user.getUserComplete({ userID: ID });
     if (!user) {
       next(new AppError('User with this ID does not exist!', 404));
       return;
     }
 
     // If not yet expired, means that the user has asked in 'successive' order and it is a potential to spam.
-    if (await CacheService.getHasAskedOTP(userID)) {
+    if (await CacheService.getHasAskedOTP(ID)) {
       next(
         new AppError(
           'You have recently asked for an OTP. Please wait 30 seconds before we process your request again.',
@@ -468,7 +494,7 @@ class AuthControllerHandler {
     }
 
     // If using authenticator, do nothing as its already there, increment redis instead.
-    await CacheService.setHasAskedOTP(userID);
+    await CacheService.setHasAskedOTP(ID);
 
     // Send back response.
     sendResponse({
@@ -495,12 +521,15 @@ class AuthControllerHandler {
     res: Response,
     next: NextFunction
   ) => {
-    const { userID } = getUserSession(req, res);
+    const { ID } = req.session;
+
+    if (!ID) {
+      next(new AppError('No session detected. Please log in again.', 401));
+      return;
+    }
 
     // Fetch current user.
-    const user = await services.user.getUserComplete({
-      userID,
-    });
+    const user = await services.user.getUserComplete({ userID: ID });
     if (!user) {
       next(new AppError('There is no user with that ID.', 404));
       return;
@@ -509,7 +538,7 @@ class AuthControllerHandler {
     // Regenerate new MFA secret.
     const newSecret = await nanoid();
     const totp = generateDefaultTOTP(user.username, newSecret);
-    await services.user.updateUser({ userID }, { totpSecret: newSecret });
+    await services.user.updateUser({ userID: ID }, { totpSecret: newSecret });
 
     // Send response.
     sendResponse({
@@ -517,7 +546,9 @@ class AuthControllerHandler {
       res,
       status: 'success',
       statusCode: 200,
-      data: { uri: totp.uri },
+      data: {
+        uri: totp.uri,
+      },
       message: 'Successfully updated MFA secrets.',
       type: 'auth',
     });
@@ -536,17 +567,15 @@ class AuthControllerHandler {
     next: NextFunction
   ) => {
     const { currentPassword, newPassword, confirmPassword } = req.body;
-    const { userID } = getUserSession(req, res);
+    const { ID } = req.session;
 
-    if (!userID) {
+    if (!ID) {
       next(new AppError('No session detected. Please log in again.', 401));
       return;
     }
 
     // Fetch old data.
-    const user = await services.user.getUserComplete({
-      userID,
-    });
+    const user = await services.user.getUserComplete({ userID: ID });
     if (!user) {
       next(new AppError('There is no user with that ID.', 404));
       return;
@@ -566,7 +595,7 @@ class AuthControllerHandler {
     }
 
     // Update new password.
-    await services.user.updateUser({ userID }, { password: newPassword });
+    await services.user.updateUser({ userID: ID }, { password: newPassword });
 
     // Send a confirmation email that the user has successfully changed their password.
     await new Email(
@@ -574,20 +603,29 @@ class AuthControllerHandler {
       user.name + ' ' + user.lastname
     ).sendUpdatePassword();
 
-    // Delete all of the sessions
-    await db.repositories.session.delete({
-      userPK: user.userPK,
-    });
+    // Destroy all sessons for this current user.
+    req.session.destroy(async (err) => {
+      if (err) {
+        next(
+          new AppError('Failed to destroy session. Please contact admin.', 500)
+        );
+        return;
+      }
 
-    // Send back response.
-    sendResponse({
-      req,
-      res,
-      status: 'success',
-      statusCode: 200,
-      data: [],
-      message: 'Password updated. For security, please log in again!',
-      type: 'auth',
+      // Delete all of the sessions. We use 'user.userID' as 'req.session.ID'
+      // is not accessible anymore (already deleted in this callback).
+      await CacheService.deleteUserSessions(user.userID);
+
+      // Send back response.
+      sendResponse({
+        req,
+        res,
+        status: 'success',
+        statusCode: 200,
+        data: [],
+        message: 'Password updated. For security, please log in again!',
+        type: 'auth',
+      });
     });
   };
 
@@ -606,9 +644,7 @@ class AuthControllerHandler {
     const { code, email } = req.params;
 
     // Validate the code. We will obfuscate all error messages for obscurity.
-    const user = await services.user.getUserComplete({
-      email,
-    });
+    const user = await services.user.getUserComplete({ email });
     if (!user) {
       next(new AppError('Invalid email verification code!', 400));
       return;
@@ -684,9 +720,7 @@ class AuthControllerHandler {
     }
 
     // Check whether username exists.
-    const user = await services.user.getUserComplete({
-      userID: username,
-    });
+    const user = await services.user.getUserComplete({ username });
     if (!user) {
       this.invalidBasicAuth('User with that ID is not found.', 404, res, next);
       return;
@@ -699,10 +733,7 @@ class AuthControllerHandler {
       // If user is not 'email-locked', send security alert to prevent spam.
       if (!(await CacheService.getSecurityAlertEmailLock(user.userID))) {
         await CacheService.setSecurityAlertEmailLock(user.userID);
-        await new Email(
-          user.email,
-          user.name + ' ' + user.lastname
-        ).sendNotification();
+        await new Email(user.email, user.name).sendNotification();
       }
 
       this.invalidBasicAuth(
@@ -745,10 +776,23 @@ class AuthControllerHandler {
 
     // Generate JWS as the authorization ticket.
     const jti = await nanoid();
-    const token = await signJWS(jti, user.userID, 900 /** 15 min */);
+    const token = await signJWS(
+      jti,
+      user.userID,
+      /** expiration 1 month */ 2592000000
+    );
 
     // Set OTP session by its JTI.
     await CacheService.setOTPSession(jti, user.userID);
+
+    // Set cookie for the JWS.
+    setCookie({
+      req,
+      res,
+      name: config.JWT_COOKIE_NAME,
+      value: token,
+      maxAge: 900000, // 15 minutes
+    });
 
     // Send response.
     sendResponse({
@@ -756,7 +800,9 @@ class AuthControllerHandler {
       res,
       status: 'success',
       statusCode: 200,
-      data: { token },
+      data: {
+        token,
+      },
       message: 'OTP verified. Special session has been given to the user.',
       type: 'auth',
     });
@@ -801,7 +847,7 @@ class AuthControllerHandler {
     res: Response,
     isAuthenticated: boolean,
     isMFA: boolean,
-    user: Record<string, unknown> | null
+    user: User | null
   ) => {
     sendResponse({
       req,

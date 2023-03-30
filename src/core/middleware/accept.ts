@@ -1,7 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
 
-import AppError from '../../util/app-error';
-
 /**
  * Middleware to validate the `Accept` header in the API.
  *
@@ -12,7 +10,8 @@ const accept = () => (req: Request, _: Response, next: NextFunction) => {
 
   // If the request do not `Accept` available formats, deny the request.
   if (!accept?.includes('application/json')) {
-    next(new AppError('API does not support the requested content type.', 406));
+    // next(new AppError('API does not support the requested content type.', 406));
+    next();
     return;
   }
 

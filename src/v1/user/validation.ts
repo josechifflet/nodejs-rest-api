@@ -46,7 +46,7 @@ const UserValidation = {
         .max(20)
         .pattern(/^[-+0-9]+$/, { name: 'phone' }),
       name: joi.string().trim().max(30),
-      lastname: joi.string().trim().max(30)
+      lastname: joi.string().trim().max(30),
     }),
   },
 

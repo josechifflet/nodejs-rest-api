@@ -1,52 +1,14 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Generated,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
-
-import { User } from './user.model';
+import { BaseEntity, Column, Entity, PrimaryColumn } from 'typeorm';
+import { SessionEntity } from 'typeorm-store';
 
 @Entity({ name: 'session' })
-export class Session {
-  @PrimaryGeneratedColumn()
-  sessionPK: number;
-
-  @Column({ unique: true })
-  @Generated('uuid')
-  sessionID: string;
-
-  @Column({ unique: true })
-  jwtId: string;
+export class Session extends BaseEntity implements SessionEntity {
+  @PrimaryColumn()
+  id: string;
 
   @Column()
-  lastActive: string;
+  expiresAt: number;
 
   @Column()
-  sessionInfoIp: string;
-
-  @Column()
-  sessionInfoDevice: string;
-
-  @Column()
-  signedIn: string;
-
-  @CreateDateColumn({ type: 'timestamptz' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ type: 'timestamptz' })
-  updatedAt: Date;
-
-  @Column({ nullable: true })
-  userPK: number;
-
-  @ManyToOne(() => User, (user) => user.sessions, {
-    nullable: true,
-  })
-  @JoinColumn({ name: 'userPK' })
-  user: User;
+  data: string;
 }

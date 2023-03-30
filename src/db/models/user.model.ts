@@ -10,7 +10,6 @@ import {
 
 import { Role } from '../../types/enums';
 import { Attendance } from './attendance.model';
-import { Session } from './session.model';
 
 @Entity({ name: 'user' })
 export class User {
@@ -62,7 +61,4 @@ export class User {
 
   @OneToMany(() => Attendance, (attendance) => attendance.user)
   attendances: Attendance[];
-
-  @OneToMany(() => Session, (session) => session.user)
-  sessions: Session[];
 }

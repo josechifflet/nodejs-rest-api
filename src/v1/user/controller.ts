@@ -99,7 +99,7 @@ class UserControllerHandler {
     await services.user.updateUser({ userID: id }, { isActive: false });
 
     await db.repositories.session.delete({
-      userPK: user.userPK,
+      id: user.userID,
     });
 
     res.status(204).send();
@@ -132,7 +132,7 @@ class UserControllerHandler {
 
     // This shouldn't happen, but let's say if an admin deletes themself...
     await db.repositories.session.delete({
-      userPK: user.userPK,
+      id: user.userID,
     });
     res.status(204).send();
     return;

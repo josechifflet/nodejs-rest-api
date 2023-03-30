@@ -13,6 +13,15 @@ const isProd = process.env.NODE_ENV === 'production';
  * Intentionally spaced so it is easier to read and find out what is related with what.
  */
 const config = {
+  // Cookie.
+  SESSION_SECRET: get('SESSION_SECRET').default('secretvalue').asString(),
+
+  DB_DATABASE: get('DB_DATABASE').required().asString(),
+  DB_HOST: get('DB_HOST').required().asString(),
+  DB_PASSWORD: get('DB_PASSWORD').required().asString(),
+  DB_PORT: get('DB_PORT').required().asPortNumber(),
+  DB_USERNAME: get('DB_USERNAME').required().asString(),
+
   // Emails.
   EMAIL_FROM: get('EMAIL_FROM').required(isProd).asString(),
   EMAIL_HOST: get('EMAIL_HOST').required(isProd).asString(),
@@ -22,6 +31,7 @@ const config = {
 
   // JWT tokens for second session.
   JWT_AUDIENCE: get('JWT_AUDIENCE').default('users').asString(),
+  JWT_COOKIE_NAME: get('JWT_COOKIE_NAME').default('jwt').asString(),
   JWT_ISSUER: get('JWT_ISSUER').default('api').asString(),
   JWT_PRIVATE_KEY: get('JWT_PRIVATE_KEY')
     .required()
@@ -42,17 +52,19 @@ const config = {
     .default('development')
     .asEnum(['development', 'production', 'test']),
 
+  // Redis.
+  REDIS_HOST: get('REDIS_HOST').default('localhost').asString(),
+  REDIS_PASSWORD: get('REDIS_PASSWORD').default('').asString(),
+  REDIS_PORT: get('REDIS_PORT').default(6379).asPortNumber(),
+
   // Ports.
   PORT: get('PORT').default(8080).asPortNumber(),
 
+  // Session cookie name.
+  SESSION_NAME: get('SESSION_NAME').default('connect.sid').asString(),
+
   // Issuer of the TOTP.
   TOTP_ISSUER: get('TOTP_ISSUER').default('Dev').asString(),
-
-  DB_DATABASE: get('DB_DATABASE').required().asString(),
-  DB_HOST: get('DB_HOST').required().asString(),
-  DB_PASSWORD: get('DB_PASSWORD').required().asString(),
-  DB_PORT: get('DB_PORT').required().asPortNumber(),
-  DB_USERNAME: get('DB_USERNAME').required().asString(),
 };
 
 export default Object.freeze(config);

@@ -32,7 +32,7 @@ const hasJWT = async (req: Request, _: Response, next: NextFunction) => {
   if (!decoded.payload.jti) {
     next(
       new AppError(
-        'The JTI of the token is invalid or not recognized. Please verify your session again.',
+        'The JTI of the token is invalid. Please verify your session again.',
         401
       )
     );
@@ -40,15 +40,15 @@ const hasJWT = async (req: Request, _: Response, next: NextFunction) => {
   }
 
   // Check if JTI exists in Redis.
-  const userID = await CacheService.getOTPSession(decoded.payload.jti);
-  if (!userID) {
+  const ID = await CacheService.getOTPSession(decoded.payload.jti);
+  if (!ID) {
     next(new AppError('This token does not exist in the database.', 401));
     return;
   }
 
   // Validate whether the session is equal to the user ID + the sub property,
   // there is no need to call the database here (reduces overhead).
-  if (req.session.userID !== userID || decoded.payload.sub !== userID) {
+  if (req.session.ID !== ID || decoded.payload.sub !== ID) {
     next(new AppError('User belonging to this token does not exist.', 404));
     return;
   }

@@ -2,8 +2,8 @@ import { Router } from 'express';
 
 import bodyParser from '../../core/middleware/body-parser';
 import hasJWT from '../../core/middleware/has-jwt';
-import hasUserSession from '../../core/middleware/has-user-session';
 import hasRole from '../../core/middleware/has-role';
+import hasSession from '../../core/middleware/has-session';
 import rateLimit from '../../core/middleware/rate-limit';
 import asyncHandler from '../../util/async-handler';
 import validate from '../../util/validate';
@@ -21,7 +21,7 @@ const AttendanceRouter = () => {
   const attendanceRateLimit = rateLimit(15, 'attendance-check');
 
   // Endpoints are only for authenticated users
-  router.use(asyncHandler(hasUserSession));
+  router.use(asyncHandler(hasSession));
 
   // Check out current day status. Almost never blocked by rate limiter.
   router.get('/status', asyncHandler(AttendanceController.getStatus));

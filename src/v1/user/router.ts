@@ -2,8 +2,8 @@ import { Router } from 'express';
 
 import bodyParser from '../../core/middleware/body-parser';
 import hasJWT from '../../core/middleware/has-jwt';
-import hasUserSession from '../../core/middleware/has-user-session';
 import hasRole from '../../core/middleware/has-role';
+import hasSession from '../../core/middleware/has-session';
 import rateLimit from '../../core/middleware/rate-limit';
 import asyncHandler from '../../util/async-handler';
 import validate from '../../util/validate';
@@ -25,7 +25,7 @@ const UserRouter = () => {
   router.use('/:id/attendances', AttendanceHandler());
 
   // Below endpoints are allowed for only authenticated users.
-  router.use(asyncHandler(hasUserSession));
+  router.use(asyncHandler(hasSession));
 
   // Allow user to get their own data and update their own data as well.
   router
