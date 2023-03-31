@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc",
     "typeorm": "typeorm-ts-node-commonjs",
+    "migration:sql": "./src/scripts/migration-generate.mts",
     "migration:create": "yarn run typeorm migration:create -d src/db/ormconfig.ts",
     "migration:generate": "yarn run typeorm migration:generate -d src/db/ormconfig.ts --pretty",
     "migration:run": "yarn run typeorm migration:run -d src/db/ormconfig.ts",
