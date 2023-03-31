@@ -37,6 +37,7 @@
     "@apollo/server": "^4.5.0",
     "apify": "^3.1.4",
     "argon2": "^0.30.3",
+    "axios": "^1.3.4",
     "body-parser": "^1.20.2",
     "bullmq": "^1.90.0",
     "class-validator": "^0.14.0",
@@ -78,10 +79,12 @@
     "pg": "^8.10.0",
     "playwright": "^1.32.1",
     "pug": "^3.0.2",
+    "puppeteer": "^19.8.2",
     "rate-limit-redis": "^2.1.0",
     "redis": "3.1.2",
     "reflect-metadata": "^0.1.13",
     "request-ip": "^3.3.0",
+    "sql-formatter": "^12.2.0",
     "supertest": "^6.3.3",
     "toobusy-js": "^0.5.1",
     "ts-node": "^10.9.1",
@@ -91,7 +94,8 @@
     "typeorm-store": "^2.0.1",
     "winston": "^3.8.2",
     "ws": "^8.13.0",
-    "zod": "^3.21.4"
+    "zod": "^3.21.4",
+    "zx": "^7.2.1"
   },
   "devDependencies": {
     "@types/connect-redis": "^0.0.19",

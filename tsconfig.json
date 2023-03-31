@@ -40,7 +40,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["./src/**/*.ts"],
+  "include": ["./src/**/*.{ts,mts}"],
   "exclude": [
     "node_modules",
     "./src/__tests__",

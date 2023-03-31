@@ -20,22 +20,22 @@ export class Position {
   @Column()
   symbol: string;
 
-  @Column()
+  @Column({ type: 'numeric' })
   entryPrice: number;
 
-  @Column()
+  @Column({ type: 'numeric' })
   markPrice: number;
 
-  @Column()
+  @Column({ type: 'numeric' })
   pnl: number;
 
-  @Column()
+  @Column({ type: 'numeric' })
   roe: number;
 
   @Column()
   updateTime: string;
 
-  @Column()
+  @Column({ type: 'numeric' })
   amount: number;
 
   @Column()

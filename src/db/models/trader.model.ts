@@ -29,10 +29,10 @@ export class Trader {
   @Column()
   rank: number;
 
-  @Column()
+  @Column({ type: 'numeric' })
   pnl: number;
 
-  @Column()
+  @Column({ type: 'numeric' })
   roi: number;
 
   @Column()

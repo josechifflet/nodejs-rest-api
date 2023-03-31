@@ -2,7 +2,6 @@ import path from 'path';
 import { DataSource } from 'typeorm';
 
 import config from '../config';
-import { entities } from './models';
 
 const { DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_DATABASE, NODE_ENV } =
   config;
@@ -13,10 +12,10 @@ export const dbDataSource = new DataSource({
   username: DB_USERNAME,
   password: DB_PASSWORD,
   database: DB_DATABASE,
-  synchronize: true,
+  synchronize: false,
   logging: ['error', 'warn', 'migration'],
-  entities,
-  migrations: [path.resolve(__dirname, 'migrations/*{.js,.ts}')],
+  entities: [path.resolve(__dirname, 'models/*.model{.js,.ts}')],
+  migrations: [path.resolve(__dirname, 'migrations/**/index*{.js,.ts}')],
   connectTimeoutMS: 10000,
   ssl: NODE_ENV === 'production',
   installExtensions: true,
