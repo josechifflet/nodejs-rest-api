@@ -16,7 +16,7 @@ const hasRole =
       return;
     }
 
-    const user = await UserService.getUser({ userID: req.session.ID });
+    const user = await UserService.getUser({ ID: req.session.ID });
     if (!user) {
       next(new AppError('User with that ID is not found.', 404));
       return;

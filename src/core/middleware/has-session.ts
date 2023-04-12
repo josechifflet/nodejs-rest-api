@@ -22,7 +22,7 @@ const hasSession = async (req: Request, _: Response, next: NextFunction) => {
   }
 
   // Check in an unlikely scenario: a user has already deleted his account but their session is still active.
-  const user = await services.user.getUser({ userID: ID });
+  const user = await services.user.getUser({ ID: ID });
   if (!user) {
     next(new AppError('User belonging to this session does not exist.', 400));
     return;

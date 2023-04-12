@@ -17,7 +17,7 @@ export const createBasicAuth = (username: string, password: string) => {
 /**
  * Parses a Basic Authorization string based on RFC 7617 specifications. This function
  * will not choke if a password contains the `:` character, but obviously the username
- * could not contain the `:` character. In this function, `identifier`, `userID`, and `username`
+ * could not contain the `:` character. In this function, `identifier`, `ID`, and `username`
  * are all identical names.
  *
  * {@link https://datatracker.ietf.org/doc/html/rfc7617}

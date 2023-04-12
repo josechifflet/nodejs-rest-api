@@ -65,6 +65,8 @@ const config = {
 
   // Issuer of the TOTP.
   TOTP_ISSUER: get('TOTP_ISSUER').default('Dev').asString(),
+
+  TELEGRAM_BOT_TOKEN: get('TELEGRAM_BOT_TOKEN').required().asString(),
 };
 
 export default Object.freeze(config);

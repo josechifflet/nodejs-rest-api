@@ -3,7 +3,6 @@ import type { NextFunction, Request, Response } from 'express';
 import { db } from '../../db';
 import { services } from '../../services';
 import AppError from '../../util/app-error';
-import getUserSession from '../../util/get-user-session';
 import sendResponse from '../../util/send-response';
 
 /**
@@ -89,17 +88,17 @@ class UserControllerHandler {
     const { id } = req.params;
 
     const user = await services.user.getUserComplete({
-      userID: id,
+      ID: id,
     });
     if (!user) {
       next(new AppError('The user with this ID does not exist!', 404));
       return;
     }
 
-    await services.user.updateUser({ userID: id }, { isActive: false });
+    await services.user.updateUser({ ID: id }, { isActive: false });
 
     await db.repositories.session.delete({
-      id: user.userID,
+      id: user.ID,
     });
 
     res.status(204).send();
@@ -121,18 +120,18 @@ class UserControllerHandler {
     const { id } = req.params;
 
     const user = await services.user.getUserComplete({
-      userID: id,
+      ID: id,
     });
     if (!user) {
       next(new AppError('The user with this ID does not exist!', 404));
       return;
     }
 
-    await services.user.deleteUser({ userID: id });
+    await services.user.deleteUser({ ID: id });
 
     // This shouldn't happen, but let's say if an admin deletes themself...
     await db.repositories.session.delete({
-      id: user.userID,
+      id: user.ID,
     });
     res.status(204).send();
     return;
@@ -145,10 +144,10 @@ class UserControllerHandler {
    * @param res - Express.js's response object.
    */
   public getUser = async (req: Request, res: Response) => {
-    const { userID } = getUserSession(req, res);
+    const { ID } = req.session;
 
     const user = await services.user.getUser({
-      userID,
+      ID,
     });
 
     sendResponse({
@@ -205,11 +204,11 @@ class UserControllerHandler {
       name,
       lastname,
     } = req.body;
-    const { userID } = getUserSession(req, res);
+    const { ID } = req.session;
 
     // Validate everything via 'Promise.all' for speed.
     const userByID = services.user.getUser({
-      userID: userID,
+      ID: ID,
     });
 
     // Perform validations.
@@ -220,7 +219,7 @@ class UserControllerHandler {
 
     // Everything is optional and sanitized according to the previous validation layer.
     const user = await services.user.updateUser(
-      { userID: userID },
+      { ID: ID },
       {
         username,
         email,

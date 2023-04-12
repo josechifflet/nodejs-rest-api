@@ -1,5 +1,6 @@
 import { expressMiddleware } from '@apollo/server/express4';
 import { json } from 'body-parser';
+import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import hpp from 'hpp';
@@ -11,7 +12,6 @@ import AuthRouter from '../../v1/auth/router';
 import HealthRouter from '../../v1/health/router';
 import SessionRouter from '../../v1/session/routes';
 import UserRouter from '../../v1/user/router';
-import WebhooksRouter from '../../v1/webhooks/routes';
 import { intializeApolloServer } from '../apollo/server';
 import errorHandler from '../errorHandler';
 import accept from '../middleware/accept';
@@ -44,8 +44,7 @@ class App {
     else this.app.use(morgan('dev'));
 
     const apolloServer = await intializeApolloServer(this.app);
-    this.app.use('/graphql', json(), expressMiddleware(apolloServer));
-    this.app.use('/api/v1/webhooks', WebhooksRouter());
+    this.app.use('/graphql', cors(), json(), expressMiddleware(apolloServer));
 
     // Allow proxies on our nginx server in production.
     if (config.NODE_ENV === 'production') this.app.enable('trust proxy');

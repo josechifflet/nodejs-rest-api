@@ -12,7 +12,7 @@ export const dbDataSource = new DataSource({
   username: DB_USERNAME,
   password: DB_PASSWORD,
   database: DB_DATABASE,
-  synchronize: false,
+  synchronize: true,
   logging: ['error', 'warn', 'migration'],
   entities: [path.resolve(__dirname, 'models/*.model{.js,.ts}')],
   migrations: [path.resolve(__dirname, 'migrations/**/index*{.js,.ts}')],

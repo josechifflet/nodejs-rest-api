@@ -33,15 +33,11 @@ export const validateJWTPayload = (jwtPayload: JWTPayload) => {
  * Signs a JWT token with EdDSA algorithm, will transform the JWT into JWS.
  *
  * @param jti - Random JSON Token Identifier.
- * @param userID - A user ID.
+ * @param ID - A user ID.
  * @param expiration - minutes.
  * @returns Signed JWS.
  */
-export const signJWS = async (
-  jti: string,
-  userID: string,
-  expiration: number
-) => {
+export const signJWS = async (jti: string, ID: string, expiration: number) => {
   const privateKey = await importPKCS8(config.JWT_PRIVATE_KEY, 'EdDSA');
 
   const payload: JWTPayload = {
@@ -51,7 +47,7 @@ export const signJWS = async (
     iss: config.JWT_ISSUER,
     jti,
     nbf: Math.floor(Date.now() / 1000),
-    sub: userID,
+    sub: ID,
   };
 
   const headers: JWTHeaderParameters = {
