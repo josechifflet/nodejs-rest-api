@@ -1,4 +1,3 @@
-import path from 'path';
 import winston from 'winston';
 
 /**
@@ -16,19 +15,13 @@ const logger = winston.createLogger({
 
   // Logger transports.
   transports: [
-    new winston.transports.File({
-      filename: path.join(__dirname, '..', 'logs', 'general.log'),
+    new winston.transports.Console({
+      format: winston.format.simple(),
     }),
   ],
 
   // Exit on error, set to false.
   exitOnError: false,
 });
-
-logger.add(
-  new winston.transports.Console({
-    format: winston.format.simple(),
-  })
-);
 
 export default logger;

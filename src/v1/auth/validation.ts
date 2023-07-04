@@ -1,4 +1,4 @@
-import joi from '../../util/joi';
+import { z } from 'zod';
 
 /**
  * Special auth validations to sanitize and analyze request bodies and parameters.
@@ -6,68 +6,74 @@ import joi from '../../util/joi';
 const AuthValidation = {
   // POST /api/v1/auth/forgot-password
   forgotPassword: {
-    body: joi.object().keys({
-      email: joi.string().trim().email().lowercase().required(),
-      username: joi.string().normalize().trim().required(),
+    body: z.object({
+      email: z.string().trim().email().min(1),
+      username: z.string().trim().min(1),
     }),
   },
 
   // POST /api/v1/auth/login
   login: {
-    body: joi.object().keys({
-      username: joi.string().normalize().trim().required(),
-      password: joi.string().required(),
+    body: z.object({
+      username: z.string().trim().min(1),
+      password: z.string().min(1),
     }),
   },
 
   // POST /api/v1/auth/register
   register: {
-    body: joi.object().keys({
-      username: joi.string().normalize().trim().required().max(25),
-      email: joi.string().trim().email().lowercase().required().max(50),
-      phoneNumber: joi
+    body: z.object({
+      username: z.string().trim().min(1).max(25),
+      email: z.string().trim().email().min(1).max(50),
+      phoneNumber: z
         .string()
         .trim()
-        .required()
+        .min(1)
         .max(20)
-        .pattern(/^[-+0-9]+$/, { name: 'phone' }),
-      password: joi.string().required().min(8).max(64),
-      fullName: joi.string().trim().required().max(30),
+        .regex(/^[-+0-9]+$/, { message: 'Invalid phone number' }),
+      password: z.string().min(8).max(64),
+      fullName: z.string().trim().min(1).max(30),
     }),
   },
 
   // PATCH /api/v1/auth/reset-password/:token
   resetPassword: {
-    params: joi.object().keys({
-      token: joi.string().required(),
+    params: z.object({
+      token: z.string().min(1),
     }),
-    body: joi.object().keys({
-      newPassword: joi.string().required().min(8).max(64),
-      confirmPassword: joi.string().required().min(8).max(64),
+    body: z.object({
+      newPassword: z.string().min(8).max(64),
+      confirmPassword: z.string().min(8).max(64),
     }),
   },
 
   // POST /api/v1/auth/otp?media=...
   sendOTP: {
-    query: joi.object().keys({
-      media: joi.string().valid('email', 'sms', 'authenticator').required(),
+    query: z.object({
+      media: z
+        .string()
+        .min(1)
+        .refine((value) => ['email', 'sms', 'authenticator'].includes(value), {
+          message: 'Invalid media',
+          path: ['media'],
+        }),
     }),
   },
 
   // PATCH /api/v1/auth/update-password
   updatePassword: {
-    body: joi.object().keys({
-      currentPassword: joi.string().normalize().required(),
-      newPassword: joi.string().normalize().required().min(8).max(64),
-      confirmPassword: joi.string().normalize().required().min(8).max(64),
+    body: z.object({
+      currentPassword: z.string().min(1),
+      newPassword: z.string().min(8).max(64),
+      confirmPassword: z.string().min(8).max(64),
     }),
   },
 
   // PATCH /api/v1/auth/verify-email
   verifyEmail: {
-    params: joi.object().keys({
-      code: joi.string().required(),
-      email: joi.string().trim().email().lowercase().required(),
+    params: z.object({
+      code: z.string().min(1),
+      email: z.string().trim().email().min(1).max(50),
     }),
   },
 };

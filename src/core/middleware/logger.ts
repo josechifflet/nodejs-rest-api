@@ -1,6 +1,5 @@
 import type { LoggerOptions } from 'express-winston';
 import expressWinston from 'express-winston';
-import path from 'path';
 import winston from 'winston';
 
 import getDeviceID from '../../util/device-id';
@@ -11,11 +10,11 @@ import getDeviceID from '../../util/device-id';
  * @param filename - File name to store the logs in.
  * @returns An object consisting of logger options.
  */
-const options = (filename: string): LoggerOptions => ({
+const options = (): LoggerOptions => ({
   // Store all logs in files. Will be created automatically as long as it does not break any permissions.
   transports: [
-    new winston.transports.File({
-      filename: path.join(__dirname, '..', '..', 'logs', filename),
+    new winston.transports.Console({
+      format: winston.format.simple(),
     }),
   ],
 
@@ -67,9 +66,9 @@ const options = (filename: string): LoggerOptions => ({
 /**
  * Success loggers.
  */
-export const successLogger = expressWinston.logger(options('traffic.log'));
+export const successLogger = expressWinston.logger(options());
 
 /**
  * Failure loggers.
  */
-export const errorLogger = expressWinston.errorLogger(options('errors.log'));
+export const errorLogger = expressWinston.errorLogger(options());

@@ -19,13 +19,4 @@ export const dbDataSource = new DataSource({
   connectTimeoutMS: 10000,
   ssl: NODE_ENV === 'production',
   installExtensions: true,
-  extra: {
-    // number of milliseconds to wait before timing out when connecting a new client
-    connectionTimeoutMillis: 10000,
-    // number of milliseconds a client must sit idle in the pool and not be checked out
-    // before it is disconnected from the backend and discarded
-    idleTimeoutMillis: 1000,
-    // maximum number of clients the pool should contain
-    max: 180,
-  },
 });

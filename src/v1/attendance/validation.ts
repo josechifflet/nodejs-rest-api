@@ -1,4 +1,4 @@
-import joi from '../../util/joi';
+import { z } from 'zod';
 
 /**
  * Special attendance validations to sanitize and analyze request bodies and parameters.
@@ -6,22 +6,22 @@ import joi from '../../util/joi';
 const AttendanceValidation = {
   // GET /api/v1/attendances and/or /api/v1/users/{id}/attendances
   getAttendances: {
-    params: joi.object().keys({
-      id: joi.string().uuid({ version: 'uuidv4' }),
+    params: z.object({
+      id: z.string().uuid(),
     }),
   },
 
   // POST /api/v1/attendances/in
   in: {
-    body: joi.object().keys({
-      remarksEnter: joi.string().trim().max(100),
+    body: z.object({
+      remarksEnter: z.string().trim().max(100),
     }),
   },
 
   // PATCH /api/v1/attendances/out
   out: {
-    body: joi.object().keys({
-      remarksLeave: joi.string().trim().max(100),
+    body: z.object({
+      remarksLeave: z.string().trim().max(100),
     }),
   },
 };

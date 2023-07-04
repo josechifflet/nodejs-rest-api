@@ -1,4 +1,4 @@
-import joi from '../../util/joi';
+import { z } from 'zod';
 
 /**
  * Special user validations to sanitize and analyze request bodies and parameters.
@@ -6,68 +6,87 @@ import joi from '../../util/joi';
 const UserValidation = {
   // POST /api/v1/users
   createUser: {
-    body: joi.object().keys({
-      username: joi.string().normalize().trim().required().max(25),
-      email: joi.string().trim().email().lowercase().required().max(50),
-      phoneNumber: joi
+    body: z.object({
+      username: z.string().trim().min(1).max(25),
+      email: z.string().trim().email().min(1).max(50),
+      phoneNumber: z
         .string()
         .trim()
-        .required()
+        .min(1)
         .max(20)
-        .pattern(/^[-+0-9]+$/, { name: 'phoneNumber' }),
-      password: joi.string().required().min(8).max(64),
-      name: joi.string().trim().required().max(30),
-      lastname: joi.string().trim().required().max(30),
-      role: joi.string().valid('admin', 'user').default('user'),
+        .regex(/^[-+0-9]+$/, { message: 'Invalid phoneNumber' }),
+      password: z.string().min(8).max(64),
+      name: z.string().trim().min(1).max(30),
+      lastname: z.string().trim().min(1).max(30),
+      role: z
+        .string()
+        .min(1)
+        .max(5)
+        .optional()
+        .refine((value) => value === 'admin' || value === 'user', {
+          message: 'Invalid role',
+          path: ['role'],
+        })
+        .default('user'),
     }),
   },
 
   // DELETE /api/v1/users/:id
   deleteUser: {
-    params: joi.object().keys({
-      id: joi.string().uuid({ version: 'uuidv4' }).required(),
+    params: z.object({
+      id: z.string().uuid().min(1),
     }),
   },
 
   // GET /api/v1/users/:id
   getUser: {
-    params: joi.object().keys({
-      id: joi.string().uuid({ version: 'uuidv4' }).required(),
+    params: z.object({
+      id: z.string().uuid().min(1),
     }),
   },
 
   // PATCH /api/v1/users/me
   updateMe: {
-    body: joi.object().keys({
-      email: joi.string().trim().lowercase().email().max(50),
-      phoneNumber: joi
+    body: z.object({
+      email: z.string().trim().email().min(1).max(50),
+      phoneNumber: z
         .string()
         .trim()
+        .min(1)
         .max(20)
-        .pattern(/^[-+0-9]+$/, { name: 'phoneNumber' }),
-      name: joi.string().trim().max(30),
-      lastname: joi.string().trim().max(30),
+        .regex(/^[-+0-9]+$/, { message: 'Invalid phoneNumber' }),
+      name: z.string().trim().min(1).max(30),
+      lastname: z.string().trim().min(1).max(30),
     }),
   },
 
   // PATCH /api/v1/users/:id
   updateUser: {
-    body: joi.object().keys({
-      username: joi.string().normalize().trim().max(25),
-      email: joi.string().trim().lowercase().email().max(50),
-      phoneNumber: joi
+    body: z.object({
+      username: z.string().trim().min(1).max(25),
+      email: z.string().trim().email().min(1).max(50),
+      phoneNumber: z
         .string()
         .trim()
+        .min(1)
         .max(20)
-        .pattern(/^[-+0-9]+$/, { name: 'phoneNumber' }),
-      password: joi.string().min(8).max(64),
-      name: joi.string().trim().max(30),
-      lastname: joi.string().trim().max(30),
-      role: joi.string().valid('admin', 'user'),
-      isActive: joi.boolean(),
+        .regex(/^[-+0-9]+$/, { message: 'Invalid phoneNumber' }),
+      password: z.string().min(8).max(64),
+      name: z.string().trim().min(1).max(30),
+      lastname: z.string().trim().min(1).max(30),
+      role: z
+        .string()
+        .min(1)
+        .max(5)
+        .optional()
+        .refine((value) => value === 'admin' || value === 'user', {
+          message: 'Invalid role',
+          path: ['role'],
+        }),
+      isActive: z.boolean().optional(),
     }),
-    params: joi.object().keys({
-      id: joi.string().uuid({ version: 'uuidv4' }).required(),
+    params: z.object({
+      id: z.string().uuid().min(1),
     }),
   },
 };

@@ -1,17 +1,13 @@
 import * as fs from 'fs';
-import * as path from 'path';
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class initial1680266675003 implements MigrationInterface {
-  private readonly upSQL = path.resolve(
-    __dirname,
-    '../1680266675003-initial/up.sql'
-  );
-  private readonly downSQL = path.resolve(
-    __dirname,
-    '../1680266675003-initial/down.sql'
-  );
-
+export class BaseMigrationInterface implements MigrationInterface {
+  upSQL: string;
+  downSQL: string;
+  constructor(upSQL: string, downSQL: string) {
+    this.upSQL = upSQL;
+    this.downSQL = downSQL;
+  }
   async up(queryRunner: QueryRunner) {
     const query = await new Promise<string>((resolve, reject) =>
       fs.readFile(this.upSQL, (err, data) => {
@@ -26,7 +22,6 @@ export class initial1680266675003 implements MigrationInterface {
     });
     queries.forEach(async (q) => await queryRunner.query(q));
   }
-
   async down(queryRunner: QueryRunner) {
     const query = await new Promise<string>((resolve, reject) =>
       fs.readFile(this.downSQL, (err, data) => {
