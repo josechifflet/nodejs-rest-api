@@ -5,25 +5,4 @@
 
 type Query {
   getCacheByKey(key: String!, time: Float!): String
-  users(limit: Float, offset: Float): [Trader!]!
-}
-
-type Trader {
-  ID: String!
-  PK: Float!
-  encryptedUid: String!
-  followerCount: Float!
-  futureUid: String
-  isTwTrader: Boolean
-  nickName: String
-  openId: String
-  pnl: Float!
-  positionShared: Boolean!
-  rank: Float!
-  roi: Float!
-  tradeType: String
-  twShared: String
-  twitterUrl: String
-  updateTime: String!
-  userPhotoUrl: String
 }

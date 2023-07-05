@@ -1,23 +1,29 @@
-import type { schema } from 'express-validation';
-import { validate as expressValidation } from 'express-validation';
+import { NextFunction, Request, Response } from 'express';
+import { AnyZodObject } from 'zod';
 
 /**
- * Allows to perform a customized validation with `express-validation`. We give
- * `joi` access to the `context`, so `joi` can modify the request object with
- * the proper minor and required conversions from `util/joi.ts`. This is intentional
- * so it does not annoy the user with minor inconveniences, for example let's imagine a
- * web service that tells you to:
- *
- * - 'Username should be lowercase only.'
- * - 'Username could not have trailing spaces.'
- * - 'Username should be normalized.'
- *
- * Isn't that annoying having to fix minor errors like that?
- *
- * @param schema - Joi schema.
+ * Allows to perform a customized validation with zod.
+ * @param schema - Zod schema.
  * @returns Express Validation function callback.
  */
-const validate = (schema: schema) =>
-  expressValidation(schema, { context: true, statusCode: 422 });
+const validate =
+  (schema: AnyZodObject) =>
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const parsed = await schema.parseAsync({
+        body: req.body,
+        query: req.query,
+        params: req.params,
+      });
+
+      req.body = parsed.body;
+      req.query = parsed.query;
+      req.params = parsed.params;
+
+      return next();
+    } catch (error) {
+      return res.status(422).json(error);
+    }
+  };
 
 export default validate;

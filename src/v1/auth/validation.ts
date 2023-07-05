@@ -5,23 +5,23 @@ import { z } from 'zod';
  */
 const AuthValidation = {
   // POST /api/v1/auth/forgot-password
-  forgotPassword: {
+  forgotPassword: z.object({
     body: z.object({
       email: z.string().trim().email().min(1),
       username: z.string().trim().min(1),
     }),
-  },
+  }),
 
   // POST /api/v1/auth/login
-  login: {
+  login: z.object({
     body: z.object({
       username: z.string().trim().min(1),
       password: z.string().min(1),
     }),
-  },
+  }),
 
   // POST /api/v1/auth/register
-  register: {
+  register: z.object({
     body: z.object({
       username: z.string().trim().min(1).max(25),
       email: z.string().trim().email().min(1).max(50),
@@ -34,10 +34,10 @@ const AuthValidation = {
       password: z.string().min(8).max(64),
       fullName: z.string().trim().min(1).max(30),
     }),
-  },
+  }),
 
   // PATCH /api/v1/auth/reset-password/:token
-  resetPassword: {
+  resetPassword: z.object({
     params: z.object({
       token: z.string().min(1),
     }),
@@ -45,10 +45,10 @@ const AuthValidation = {
       newPassword: z.string().min(8).max(64),
       confirmPassword: z.string().min(8).max(64),
     }),
-  },
+  }),
 
   // POST /api/v1/auth/otp?media=...
-  sendOTP: {
+  sendOTP: z.object({
     query: z.object({
       media: z
         .string()
@@ -58,24 +58,24 @@ const AuthValidation = {
           path: ['media'],
         }),
     }),
-  },
+  }),
 
   // PATCH /api/v1/auth/update-password
-  updatePassword: {
+  updatePassword: z.object({
     body: z.object({
       currentPassword: z.string().min(1),
       newPassword: z.string().min(8).max(64),
       confirmPassword: z.string().min(8).max(64),
     }),
-  },
+  }),
 
   // PATCH /api/v1/auth/verify-email
-  verifyEmail: {
+  verifyEmail: z.object({
     params: z.object({
       code: z.string().min(1),
       email: z.string().trim().email().min(1).max(50),
     }),
-  },
+  }),
 };
 
 export default AuthValidation;

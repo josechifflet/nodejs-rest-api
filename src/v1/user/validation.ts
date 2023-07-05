@@ -5,7 +5,7 @@ import { z } from 'zod';
  */
 const UserValidation = {
   // POST /api/v1/users
-  createUser: {
+  createUser: z.object({
     body: z.object({
       username: z.string().trim().min(1).max(25),
       email: z.string().trim().email().min(1).max(50),
@@ -29,24 +29,24 @@ const UserValidation = {
         })
         .default('user'),
     }),
-  },
+  }),
 
   // DELETE /api/v1/users/:id
-  deleteUser: {
+  deleteUser: z.object({
     params: z.object({
       id: z.string().uuid().min(1),
     }),
-  },
+  }),
 
   // GET /api/v1/users/:id
-  getUser: {
+  getUser: z.object({
     params: z.object({
       id: z.string().uuid().min(1),
     }),
-  },
+  }),
 
   // PATCH /api/v1/users/me
-  updateMe: {
+  updateMe: z.object({
     body: z.object({
       email: z.string().trim().email().min(1).max(50),
       phoneNumber: z
@@ -58,10 +58,10 @@ const UserValidation = {
       name: z.string().trim().min(1).max(30),
       lastname: z.string().trim().min(1).max(30),
     }),
-  },
+  }),
 
   // PATCH /api/v1/users/:id
-  updateUser: {
+  updateUser: z.object({
     body: z.object({
       username: z.string().trim().min(1).max(25),
       email: z.string().trim().email().min(1).max(50),
@@ -88,7 +88,7 @@ const UserValidation = {
     params: z.object({
       id: z.string().uuid().min(1),
     }),
-  },
+  }),
 };
 
 export default UserValidation;
